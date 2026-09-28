@@ -1,8 +1,8 @@
 class AgentGuard < Formula
   desc "Blocks agent filesystem scans and credential reads that trigger macOS App Data prompts"
   homepage "https://github.com/LoopHubs/agent-guard"
-  url "https://registry.npmjs.org/@loophubs/agent-guard/-/agent-guard-0.1.0.tgz"
-  sha256 "e06edbafaab77181adad3511c2475618e094f33bd8871486207ad246a557509b"
+  url "https://registry.npmjs.org/@loophubs/agent-guard/-/agent-guard-0.2.0.tgz"
+  sha256 "7f678f0e8e587288b87d762a33298310c5c4137b206eb7c7e8125e035018ff04"
   license "MIT"
 
   depends_on "node"
