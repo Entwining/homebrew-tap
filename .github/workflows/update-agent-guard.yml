@@ -1,0 +1,43 @@
+name: Update agent-guard
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-agent-guard
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Bump the formula to the latest npm release
+        run: |
+          set -euo pipefail
+          formula=Formula/agent-guard.rb
+          latest=$(curl -fsS https://registry.npmjs.org/@loophubs%2Fagent-guard/latest | jq -r .version)
+          # The registry response feeds a URL and a sed expression, so accept only a plain release version.
+          [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { printf 'Unexpected version from npm: %s\n' "$latest" >&2; exit 1; }
+          current=$(sed -n 's#.*/agent-guard-\([0-9][0-9.]*\)\.tgz".*#\1#p' "$formula")
+          [[ -n "$current" ]] || { printf 'No version found in %s\n' "$formula" >&2; exit 1; }
+          if [[ "$latest" == "$current" ]]; then
+            printf 'agent-guard %s is current\n' "$current"
+            exit 0
+          fi
+          # Never move the formula backwards, for example after an unpublished or deprecated latest tag.
+          [[ "$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n 1)" == "$latest" ]] || { printf 'npm latest %s is older than formula %s\n' "$latest" "$current" >&2; exit 1; }
+          sha=$(curl -fsS "https://registry.npmjs.org/@loophubs/agent-guard/-/agent-guard-${latest}.tgz" | shasum -a 256 | cut -d ' ' -f 1)
+          [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || { printf 'Bad checksum: %s\n' "$sha" >&2; exit 1; }
+          sed -e "s#/agent-guard-${current}\.tgz#/agent-guard-${latest}.tgz#" -e "s#^\(  sha256 \"\)[0-9a-f]*\"#\1${sha}\"#" "$formula" > "$formula.new"
+          mv "$formula.new" "$formula"
+          git diff --exit-code --quiet "$formula" && { printf 'Formula unchanged after edit\n' >&2; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "agent-guard ${latest}"
+          git push
