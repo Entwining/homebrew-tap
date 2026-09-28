@@ -6,16 +6,11 @@ class AgentGuard < Formula
   license "MIT"
 
   depends_on "node"
+  depends_on "oven-sh/bun/bun"
 
   def install
     system "npm", "install", *std_npm_args
     bin.install_symlink Dir["#{libexec}/bin/*"]
-  end
-
-  def caveats
-    <<~EOS
-      agent-guard runs under bun. Install bun (for example with proto) and keep it on PATH.
-    EOS
   end
 
   test do
