@@ -1,6 +1,8 @@
 name: Update agent-guard
 
 on:
+  repository_dispatch:
+    types: [npm-release]
   schedule:
     - cron: "17 */6 * * *"
   workflow_dispatch:
