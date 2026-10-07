@@ -1,5 +1,5 @@
 class Sessidx < Formula
-  desc "Index local Claude Code, Codex, and Pi session logs for lookup and counts"
+  desc "Index local coding agent session logs for lookup and counts"
   homepage "https://github.com/LoopHubs/sessidx"
   url "https://github.com/LoopHubs/sessidx.git",
       tag:      "v0.0.1",
