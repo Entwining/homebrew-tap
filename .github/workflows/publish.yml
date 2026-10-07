@@ -64,7 +64,19 @@ jobs:
             brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" "$PULL_REQUEST"
           fi
 
+      # pr-pull skips the download when a pull request changes no formula, so there is nothing to attest.
+      - name: Check for bottles
+        id: bottles
+        env:
+          BOTTLE_PATH: ${{ steps.pull_bottles.outputs.bottle_path }}
+        run: |
+          if compgen -G "$BOTTLE_PATH/*.tar.gz" > /dev/null
+          then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate build provenance
+        if: steps.bottles.outputs.found == 'true'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: "${{ steps.pull_bottles.outputs.bottle_path }}/*.tar.gz"
