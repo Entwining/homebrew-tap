@@ -12,6 +12,12 @@ class AgentGuard < Formula
     strategy :github_latest
   end
 
+  bottle do
+    root_url "https://github.com/Entwining/homebrew-tap/releases/download/agent-guard-0.6.0"
+    rebuild 1
+    sha256 cellar: :any_skip_relocation, arm64_tahoe: "58b250c377de16ed83274c45e1fd4c109b6ffcd88bb617f79f76d8cff06b820a"
+  end
+
   depends_on "go" => :build
   depends_on arch: :arm64
   depends_on :macos
