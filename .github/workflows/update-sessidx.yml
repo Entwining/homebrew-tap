@@ -1,0 +1,55 @@
+name: Update sessidx
+
+on:
+  repository_dispatch:
+    types: [sessidx-release]
+  schedule:
+    - cron: "47 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-sessidx
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478
+        id: homebrew
+        with:
+          stable: true
+          token: ${{ github.token }}
+      - name: Update from GitHub Releases
+        working-directory: ${{ steps.homebrew.outputs.repository-path }}
+        env:
+          TAP: ${{ steps.homebrew.outputs.tap-name }}
+        run: |
+          set -euo pipefail
+          brew livecheck --json --newer-only "$TAP/sessidx" > "$RUNNER_TEMP/livecheck.json"
+          latest=$(jq -er '
+            if type != "array" then error("Expected a livecheck array")
+            elif length == 0 then "current"
+            elif length == 1 and .[0].formula == "sessidx"
+              and .[0].status == null and .[0].version.outdated == true
+              and (.[0].version.latest | type) == "string"
+              and (.[0].version.latest | test("^0\\.[0-9]+\\.[0-9]+$"))
+            then .[0].version.latest
+            else error("Unexpected or failed livecheck result") end
+          ' "$RUNNER_TEMP/livecheck.json")
+          if [[ "$latest" == current ]]; then
+            printf 'sessidx is current\n'
+            exit 0
+          fi
+          brew bump-formula-pr --write-only --tag="v${latest}" "$TAP/sessidx"
+          git diff --exit-code --quiet -- Formula/sessidx.rb && { printf 'Formula unchanged after bump\n' >&2; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/sessidx.rb
+          git commit -m "sessidx ${latest}"
+          git push origin HEAD:main
