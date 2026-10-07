@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       formula:
-        description: Formula to bottle, such as loophubs/tap/sessidx
+        description: Formula to bottle, such as entwining/tap/sessidx
         required: true
 
 permissions: {}
