@@ -1,0 +1,40 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    "schedule:weekly"
+  ],
+  "enabledManagers": ["github-actions", "custom.regex"],
+  "timezone": "Asia/Singapore",
+  "platformAutomerge": false,
+  "customManagers": [
+    {
+      "description": "Read Homebrew Actions' four-part calendar tags without truncating the version.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "Homebrew/actions/[^@\\s]+@(?<currentDigest>[a-f0-9]{40}) # (?<currentValue>[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]+)"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "Homebrew/actions",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["Homebrew/actions"],
+      "enabled": false
+    },
+    {
+      "description": "GitHub runner versions have no release timestamps, so the cooldown applies to tagged actions.",
+      "matchDatasources": ["github-tags"],
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest", "digest"],
+      "groupName": "Routine dependencies",
+      "automerge": true
+    }
+  ]
+}
