@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: update-agent-guard
@@ -19,16 +19,25 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 15
     steps:
+      # A pull request opened with GITHUB_TOKEN would not start brew test-bot, so the bump goes through the app.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.TAP_CLIENT_ID }}
+          private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
       - uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478
         id: homebrew
         with:
           stable: true
           token: ${{ github.token }}
-      - name: Update from GitHub Releases
+      - name: Open a bump pull request from GitHub Releases
         working-directory: ${{ steps.homebrew.outputs.repository-path }}
         env:
           TAP: ${{ steps.homebrew.outputs.tap-name }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
           brew livecheck --json --newer-only "$TAP/agent-guard" > "$RUNNER_TEMP/livecheck.json"
@@ -46,10 +55,6 @@ jobs:
             printf 'agent-guard is current\n'
             exit 0
           fi
-          brew bump-formula-pr --write-only --tag="v${latest}" "$TAP/agent-guard"
-          git diff --exit-code --quiet -- Formula/agent-guard.rb && { printf 'Formula unchanged after bump\n' >&2; exit 1; }
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/agent-guard.rb
-          git commit -m "agent-guard ${latest}"
-          git push origin HEAD:main
+          brew bump-formula-pr --no-browse --no-fork --tag="v${latest}" "$TAP/agent-guard"
