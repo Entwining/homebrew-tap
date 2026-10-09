@@ -32,7 +32,8 @@ jobs:
         id: homebrew
         with:
           stable: true
-          token: ${{ github.token }}
+          # setup-homebrew sets this token as a global git auth header, so bump-formula-pr pushes with it.
+          token: ${{ steps.app-token.outputs.token }}
       - name: Open a bump pull request from GitHub Releases
         working-directory: ${{ steps.homebrew.outputs.repository-path }}
         env:
