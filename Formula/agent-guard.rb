@@ -18,12 +18,12 @@ class AgentGuard < Formula
     sha256 cellar: :any_skip_relocation, arm64_tahoe: "58b250c377de16ed83274c45e1fd4c109b6ffcd88bb617f79f76d8cff06b820a"
   end
 
-  depends_on "go" => :build
+  depends_on "rust" => :build
   depends_on arch: :arm64
   depends_on :macos
 
   def install
-    system "go", "build", *std_go_args(output: libexec/"bin/agent-guard-native", ldflags: "-X main.version=#{version}"), "./cmd/agent-guard"
+    system "cargo", "install", *std_cargo_args(root: libexec), "--bin", "agent-guard-native"
     (libexec/"bin").install "bin/agent-guard"
     libexec.install "VERSION"
     bin.install_symlink libexec/"bin/agent-guard"
