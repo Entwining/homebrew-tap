@@ -85,3 +85,17 @@ jobs:
         uses: Homebrew/actions/git-try-push@e99025eb970cfa124b8284a35463d87426917478 # 2026.09.28.1
         with:
           branch: main
+
+      # The pushed commits close the pull request without merging it, so the repository's delete-on-merge setting
+      # skips its branch, and a push with GITHUB_TOKEN starts no workflow on the closed event.
+      - name: Delete the pull request branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ inputs.pull_request || github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          read -r cross_repository branch < <(gh pr view "$PULL_REQUEST" --repo "$GITHUB_REPOSITORY" \
+            --json isCrossRepository,headRefName --jq '"\(.isCrossRepository) \(.headRefName)"')
+          if [[ "$cross_repository" == false ]]
+          then
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+          fi
