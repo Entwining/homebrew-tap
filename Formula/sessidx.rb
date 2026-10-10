@@ -18,16 +18,22 @@ class Sessidx < Formula
     sha256 cellar: :any_skip_relocation, arm64_tahoe: "89bcac9824ebb7a32ed09d2fefeef4bcafe23ebd82e5f35c3ae1b9adc09cb191"
   end
 
+  depends_on "cargo-about" => :build
   depends_on "rust" => :build
   depends_on arch: :arm64
   depends_on :macos
 
   def install
     system "cargo", "install", *std_cargo_args
+    # Homebrew copies LICENSE* files from the build directory into the keg, so the bottle carries these notices.
+    # cargo-about reads metadata for every target, so fetch the crates that `cargo install` skips.
+    system "cargo", "fetch", "--locked"
+    system "cargo", "about", "generate", "--frozen", "--fail", "--output-file", "LICENSE-THIRD-PARTY.md", "about.hbs"
   end
 
   test do
     assert_equal "sessidx #{version}\n", shell_output("#{bin}/sessidx --version")
+    assert_path_exists prefix/"LICENSE-THIRD-PARTY.md"
     (testpath/"codex/session.jsonl").write <<~JSON
       {"type":"response_item","timestamp":"2026-10-01T00:00:00Z","payload":{"type":"message","id":"m1","role":"user","content":[{"type":"input_text","text":"brewneedle"}]}}
     JSON
