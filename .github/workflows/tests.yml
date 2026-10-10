@@ -14,6 +14,11 @@ on:
 
 permissions: {}
 
+# A newer push to a pull request supersedes its running build; publish.yml skips the cancelled run.
+concurrency:
+  group: test-bot-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 defaults:
   run:
     shell: bash -xeuo pipefail {0}
