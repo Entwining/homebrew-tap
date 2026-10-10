@@ -17,6 +17,7 @@ class AgentGuard < Formula
     sha256 cellar: :any_skip_relocation, arm64_tahoe: "4955836bc9ca8bafb9b87103f7dc42d3cf1cdac3516f0a82d9f9911667f24790"
   end
 
+  depends_on "cargo-about" => :build
   depends_on "rust" => :build
   depends_on arch: :arm64
   depends_on :macos
@@ -26,10 +27,15 @@ class AgentGuard < Formula
     (libexec/"bin").install "bin/agent-guard"
     libexec.install "VERSION"
     bin.install_symlink libexec/"bin/agent-guard"
+    # Homebrew copies LICENSE* files from the build directory into the keg, so the bottle carries these notices.
+    # cargo-about reads metadata for every target, so fetch the crates that `cargo install` skips.
+    system "cargo", "fetch", "--locked"
+    system "cargo", "about", "generate", "--frozen", "--fail", "--output-file", "LICENSE-THIRD-PARTY.md", "about.hbs"
   end
 
   test do
     assert_equal "agent-guard #{version}\n", shell_output("#{bin}/agent-guard --version")
+    assert_path_exists prefix/"LICENSE-THIRD-PARTY.md"
     event = '{"tool_name":"Bash","tool_input":{"command":"ls"}}'
     assert_equal "", pipe_output("#{bin}/agent-guard --runtime claude", event, 0)
     event = '{"tool_name":"Bash","tool_input":{"command":"env"}}'
