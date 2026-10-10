@@ -23,6 +23,8 @@ class Sessidx < Formula
   depends_on :macos
 
   def install
+    # Homebrew's make wrapper replaces the -O3 that cc-rs passes for the bundled SQLite and zstd with -Os.
+    ENV.O3
     # `make build` stages the whole package, so a packaging change ships with the release that makes it.
     system "make", "build", "OUT=#{prefix}"
   end
