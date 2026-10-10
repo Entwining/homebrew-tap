@@ -38,10 +38,34 @@ jobs:
       issues: read
       pull-requests: write
     steps:
+      # The ruleset on main requires test-bot to pass in a pull_request run, but this job pushes past it as the tap
+      # app, and pr-pull only checks that a test-bot run finished, or none at all when no formula needs a bottle.
+      # A dispatched run tests only the formula it names, and the ruleset ignores its checks too.
+      - name: Check test-bot on the pull request's head
+        id: head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: ${{ inputs.head_sha || github.event.workflow_run.head_sha }}
+          PULL_REQUEST: ${{ inputs.pull_request || github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          sha=$(gh pr view "$PULL_REQUEST" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+          if [[ -n "$EXPECTED_SHA" && "$EXPECTED_SHA" != "$sha" ]]
+          then
+            echo "::error::Pull request #$PULL_REQUEST is at $sha, not $EXPECTED_SHA."
+            exit 1
+          fi
+          conclusion=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/tests.yml/runs?event=pull_request&head_sha=$sha" \
+            --jq '.workflow_runs | max_by(.created_at) | if . == null then "missing" else .conclusion // .status end')
+          if [[ "$conclusion" != success ]]
+          then
+            echo "::error::test-bot on $sha is $conclusion, not success."
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      # No token: the tap is public, and git would send a token set here alongside the app's in git-try-push.
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478 # 2026.09.28.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up git
         id: git_setup
@@ -50,19 +74,14 @@ jobs:
       - name: Pull bottles
         id: pull_bottles
         env:
+          # The app cannot read workflow artifacts, so pr-pull's API calls keep the job's token.
           HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_GIT_COMMITTER_NAME: ${{ steps.git_setup.outputs.name }}
           HOMEBREW_GIT_COMMITTER_EMAIL: ${{ steps.git_setup.outputs.email }}
-          HEAD_SHA: ${{ inputs.head_sha || github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ steps.head.outputs.sha }}
           PULL_REQUEST: ${{ inputs.pull_request || github.event.workflow_run.pull_requests[0].number }}
         run: |
-          if [[ -n "$HEAD_SHA" ]]
-          then
-            brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" --head-sha="$HEAD_SHA" \
-              "$PULL_REQUEST"
-          else
-            brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" "$PULL_REQUEST"
-          fi
+          brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" --head-sha="$HEAD_SHA" "$PULL_REQUEST"
 
       # pr-pull skips the download when a pull request changes no formula, so there is nothing to attest.
       - name: Check for bottles
@@ -81,13 +100,24 @@ jobs:
         with:
           subject-path: "${{ steps.pull_bottles.outputs.bottle_path }}/*.tar.gz"
 
+      # Only the tap app may push past the ruleset on main. Its token expires an hour after it is created, so it is
+      # created right before the push and its retries.
+      - name: Create the tap app's token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.TAP_CLIENT_ID }}
+          private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Push commits
         uses: Homebrew/actions/git-try-push@e99025eb970cfa124b8284a35463d87426917478 # 2026.09.28.1
         with:
+          token: ${{ steps.app-token.outputs.token }}
           branch: main
 
       # The pushed commits close the pull request without merging it, so the repository's delete-on-merge setting
-      # skips its branch, and a push with GITHUB_TOKEN starts no workflow on the closed event.
+      # skips its branch.
       - name: Delete the pull request branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
