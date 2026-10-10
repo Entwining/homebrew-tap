@@ -5,6 +5,7 @@ class AgentGuard < Formula
       tag:      "v0.8.1",
       revision: "85af0573f7274fe7e4c0bf607dff16e2c6545a78"
   license "MIT"
+  revision 1
 
   livecheck do
     url :stable
@@ -23,19 +24,20 @@ class AgentGuard < Formula
   depends_on :macos
 
   def install
-    system "cargo", "install", *std_cargo_args(root: libexec), "--bin", "agent-guard-native"
-    (libexec/"bin").install "bin/agent-guard"
-    libexec.install "VERSION"
+    # `make build` stages the whole package, so a packaging change ships with the release that makes it.
+    # It refuses directories inside a Git checkout, which the build directory and the Homebrew prefix both are.
+    mktemp do |staging|
+      package = staging.tmpdir/"package"
+      system "make", "--directory=#{buildpath}", "build", "OUT=#{package}",
+             "CARGO_TARGET_DIR=#{staging.tmpdir}/cargo-target"
+      libexec.install package.children
+    end
     bin.install_symlink libexec/"bin/agent-guard"
-    # Homebrew copies LICENSE* files from the build directory into the keg, so the bottle carries these notices.
-    # cargo-about reads metadata for every target, so fetch the crates that `cargo install` skips.
-    system "cargo", "fetch", "--locked"
-    system "cargo", "about", "generate", "--frozen", "--fail", "--output-file", "LICENSE-THIRD-PARTY.md", "about.hbs"
   end
 
   test do
     assert_equal "agent-guard #{version}\n", shell_output("#{bin}/agent-guard --version")
-    assert_path_exists prefix/"LICENSE-THIRD-PARTY.md"
+    assert_path_exists libexec/"LICENSE-THIRD-PARTY.md"
     event = '{"tool_name":"Bash","tool_input":{"command":"ls"}}'
     assert_equal "", pipe_output("#{bin}/agent-guard --runtime claude", event, 0)
     event = '{"tool_name":"Bash","tool_input":{"command":"env"}}'
