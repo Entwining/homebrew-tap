@@ -6,6 +6,10 @@
   ],
   "enabledManagers": ["github-actions", "custom.regex"],
   "timezone": "Asia/Singapore",
+  "description": [
+    "update-agent-guard.yml and update-sessidx.yml bump the formulae with bump-formula-pr, whose pull requests also build and publish bottles, so Renovate updates only the workflows.",
+    "platformAutomerge stays false so that automerge never depends on which checks main requires: Renovate merges once every check on the pull request passes."
+  ],
   "platformAutomerge": false,
   "customManagers": [
     {
@@ -22,6 +26,7 @@
   ],
   "packageRules": [
     {
+      "description": "The github-actions manager truncates Homebrew Actions' tags to three parts, a tag that does not exist, so only the custom manager above updates them.",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["Homebrew/actions"],
       "enabled": false
@@ -32,8 +37,16 @@
       "minimumReleaseAge": "7 days"
     },
     {
+      "description": "Group and automerge non-major updates after checks pass.",
       "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest", "digest"],
       "groupName": "Routine dependencies",
+      "automerge": true
+    },
+    {
+      "description": "test-bot runs these on every pull request, so their majors merge once checks pass. Homebrew/actions also supplies the steps that push bottles, and the other actions and runners run only when a release is bumped or published; no Renovate pull request exercises those.",
+      "matchPackageNames": ["actions/cache", "actions/upload-artifact"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "CI major updates",
       "automerge": true
     }
   ]
