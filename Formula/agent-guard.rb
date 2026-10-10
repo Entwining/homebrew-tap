@@ -17,7 +17,6 @@ class AgentGuard < Formula
     sha256 cellar: :any_skip_relocation, arm64_tahoe: "4955836bc9ca8bafb9b87103f7dc42d3cf1cdac3516f0a82d9f9911667f24790"
   end
 
-  depends_on "cargo-about" => :build
   depends_on "rust" => :build
   depends_on arch: :arm64
   depends_on :macos
