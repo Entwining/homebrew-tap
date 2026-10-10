@@ -17,14 +17,19 @@ class AgentGuard < Formula
     sha256 cellar: :any_skip_relocation, arm64_tahoe: "4955836bc9ca8bafb9b87103f7dc42d3cf1cdac3516f0a82d9f9911667f24790"
   end
 
+  depends_on "cargo-about" => :build
   depends_on "rust" => :build
   depends_on arch: :arm64
   depends_on :macos
 
   def install
-    system "cargo", "install", *std_cargo_args(root: libexec), "--bin", "agent-guard-native"
-    (libexec/"bin").install "bin/agent-guard"
-    libexec.install "VERSION"
+    # `make build` stages the whole package, so a packaging change ships with the release that makes it.
+    # It refuses directories inside a Git checkout, which the build directory and the Homebrew prefix both are.
+    mktemp do |staging|
+      system "make", "-C", buildpath, "build", "OUT=#{staging.tmpdir}/package",
+             "CARGO_TARGET_DIR=#{staging.tmpdir}/cargo-target"
+      libexec.install Dir["#{staging.tmpdir}/package/*"]
+    end
     bin.install_symlink libexec/"bin/agent-guard"
   end
 
