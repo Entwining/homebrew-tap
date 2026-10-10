@@ -2,8 +2,8 @@ class AgentGuard < Formula
   desc "Blocks agent filesystem scans and protected credential reads"
   homepage "https://github.com/Entwining/agent-guard"
   url "https://github.com/Entwining/agent-guard.git",
-      tag:      "v0.7.0",
-      revision: "ecf9d68aefe4df7e078ea65588e3c4debe9f4f6a"
+      revision: "ab773c9d3b814a458dab24cc48f432edb1504709"
+  version "0.7.0"
   license "MIT"
 
   livecheck do
@@ -35,6 +35,7 @@ class AgentGuard < Formula
 
   test do
     assert_equal "agent-guard #{version}\n", shell_output("#{bin}/agent-guard --version")
+    assert_path_exists libexec/"LICENSE-THIRD-PARTY.md"
     event = '{"tool_name":"Bash","tool_input":{"command":"ls"}}'
     assert_equal "", pipe_output("#{bin}/agent-guard --runtime claude", event, 0)
     event = '{"tool_name":"Bash","tool_input":{"command":"env"}}'
