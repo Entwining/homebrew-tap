@@ -28,6 +28,7 @@ class Sessidx < Formula
 
   test do
     assert_equal "sessidx #{version}\n", shell_output("#{bin}/sessidx --version")
+    assert_path_exists prefix/"LICENSE-THIRD-PARTY.md"
     (testpath/"codex/session.jsonl").write <<~JSON
       {"type":"response_item","timestamp":"2026-10-01T00:00:00Z","payload":{"type":"message","id":"m1","role":"user","content":[{"type":"input_text","text":"brewneedle"}]}}
     JSON
