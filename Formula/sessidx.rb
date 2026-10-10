@@ -13,8 +13,8 @@ class Sessidx < Formula
   end
 
   bottle do
-    root_url "https://github.com/Entwining/homebrew-tap/releases/download/sessidx-0.0.2"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe: "b87fc97670fae17f249a7355cdfad5391a5a06896a459fc8ac87def543b7ba3d"
+    root_url "https://github.com/Entwining/homebrew-tap/releases/download/sessidx-0.0.3"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe: "3dfe0095c8d7be1767a44420d510fc3ca3a60e36189ff123a4673e6082a9df47"
   end
 
   depends_on "cargo-about" => :build
