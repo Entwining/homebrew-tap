@@ -23,11 +23,8 @@ class Sessidx < Formula
   depends_on :macos
 
   def install
-    system "cargo", "install", *std_cargo_args
-    # Homebrew copies LICENSE* files from the build directory into the keg, so the bottle carries these notices.
-    # cargo-about reads metadata for every target, so fetch the crates that `cargo install` skips.
-    system "cargo", "fetch", "--locked"
-    system "cargo", "about", "generate", "--frozen", "--fail", "--output-file", "LICENSE-THIRD-PARTY.md", "about.hbs"
+    # `make build` stages the whole package, so a packaging change ships with the release that makes it.
+    system "make", "build", "OUT=#{prefix}"
   end
 
   test do
