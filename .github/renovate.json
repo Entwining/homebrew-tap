@@ -1,16 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:best-practices",
-    "schedule:weekly"
-  ],
+  "extends": ["github>Entwining/renovate-config"],
   "enabledManagers": ["github-actions", "custom.regex"],
-  "timezone": "Asia/Singapore",
   "description": [
-    "update-agent-guard.yml and update-sessidx.yml bump the formulae with bump-formula-pr, whose pull requests also build and publish bottles, so Renovate updates only the workflows.",
-    "platformAutomerge stays false so that automerge never depends on which checks main requires: Renovate merges once every check on the pull request passes."
+    "update-agent-guard.yml and update-sessidx.yml bump the formulae with bump-formula-pr, whose pull requests also build and publish bottles, so Renovate updates only the workflows."
   ],
-  "platformAutomerge": false,
   "customManagers": [
     {
       "description": "Read Homebrew Actions' four-part calendar tags without truncating the version.",
@@ -30,17 +24,6 @@
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["Homebrew/actions"],
       "enabled": false
-    },
-    {
-      "description": "GitHub runner versions have no release timestamps, so the cooldown applies to tagged actions.",
-      "matchDatasources": ["github-tags"],
-      "minimumReleaseAge": "7 days"
-    },
-    {
-      "description": "Group and automerge non-major updates after checks pass.",
-      "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest", "digest"],
-      "groupName": "Routine dependencies",
-      "automerge": true
     },
     {
       "description": "test-bot runs these on every pull request, so their majors merge once checks pass. Homebrew/actions also supplies the steps that push bottles, and the other actions and runners run only when a release is bumped or published; no Renovate pull request exercises those.",
