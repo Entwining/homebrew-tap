@@ -13,8 +13,8 @@ class AgentGuard < Formula
   end
 
   bottle do
-    root_url "https://github.com/Entwining/homebrew-tap/releases/download/agent-guard-0.8.4"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe: "273afb0125c86aa52b1f9fc73a21edd5e253eb24fd3056926b0f200d2566a2fd"
+    root_url "https://github.com/Entwining/homebrew-tap/releases/download/agent-guard-0.8.5"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe: "1e5d4dc189655c2beb0b0209408f5323d803e64b173359b6c2c85855a6ebb5bf"
   end
 
   depends_on "cargo-about" => :build
