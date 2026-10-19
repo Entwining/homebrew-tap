@@ -2,8 +2,8 @@ class AgentGuard < Formula
   desc "Blocks agent filesystem scans and protected credential reads"
   homepage "https://github.com/Entwining/agent-guard"
   url "https://github.com/Entwining/agent-guard.git",
-      tag:      "v0.8.6",
-      revision: "71849adcaabf7b3c7f227b47583cc78cb1d46be4"
+      tag:      "v0.8.7",
+      revision: "d1425a600fe1b3fb7c9280ec69c7dfa12eb9a4c6"
   license "MIT"
 
   livecheck do
