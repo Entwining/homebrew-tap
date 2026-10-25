@@ -1,9 +1,15 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>Entwining/renovate-config"],
+  "extends": [
+    "github>Entwining/renovate-config",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(ci)"
+  ],
   "enabledManagers": ["github-actions", "custom.regex"],
+  "automergeStrategy": "squash",
+  "rebaseWhen": "behind-base-branch",
   "description": [
-    "update-agent-guard.yml, update-rexume.yml and update-sessidx.yml bump the formulae with bump-formula-pr, whose pull requests also build and publish bottles, so Renovate updates only the workflows."
+    "update.yml opens formula release PRs and publish.yml supplies their bottles; Renovate updates workflow dependencies."
   ],
   "customManagers": [
     {
@@ -26,7 +32,7 @@
       "enabled": false
     },
     {
-      "description": "test-bot runs these on every pull request, so their majors merge once checks pass. Homebrew/actions also supplies the steps that push bottles, and the other actions and runners run only when a release is bumped or published; no Renovate pull request exercises those.",
+      "description": "test-bot runs cache and artifact upload on pull requests, so their majors merge once checks pass. Release-only actions and runners require separate validation.",
       "matchPackageNames": ["actions/cache", "actions/upload-artifact"],
       "matchUpdateTypes": ["major"],
       "groupName": "CI major updates",

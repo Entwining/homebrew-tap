@@ -1,0 +1,52 @@
+name: Bottle readiness
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: bottle-ready-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  bottle-ready:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@eb02c69dbabdb66ff183c614f4ce7ab3c077592c # 2026.10.12.1
+        id: homebrew
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check source-bound bottle metadata
+        working-directory: ${{ steps.homebrew.outputs.repository-path }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          brew install-bundler-gems --add-groups=ast
+          git fetch --no-tags origin "$HEAD_SHA" 'refs/tags/publish/*:refs/tags/publish/*'
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PULL_REQUEST/files" --paginate --slurp \
+            --jq '[.[][] | select(.status != "removed" and (.filename | test("^Formula/[^/]+\\.rb$"))) | .filename]' > "$RUNNER_TEMP/paths.json"
+          jq -n --arg repository "$GITHUB_REPOSITORY" --arg sha "$HEAD_SHA" --slurpfile paths "$RUNNER_TEMP/paths.json" \
+            '{repository: $repository, head_sha: $sha, paths: $paths[0]}' > "$RUNNER_TEMP/selection.json"
+          brew ruby .github/scripts/bottle_receipt.rb check "$RUNNER_TEMP/selection.json" > "$RUNNER_TEMP/ready.json"
+
+      - name: Fetch, pour and test the bottles
+        working-directory: ${{ steps.homebrew.outputs.repository-path }}
+        env:
+          TAP: ${{ steps.homebrew.outputs.tap-name }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r formula; do
+            formula="$TAP/$formula"
+            brew fetch --formula --bottle-tag=arm64_tahoe "$formula"
+            brew install --formula --force-bottle "$formula"
+            brew info --json=v2 --formula "$formula" | jq -e '.formulae[0].installed | length > 0 and all(.[]; .poured_from_bottle == true)'
+            brew test "$formula"
+          done < <(jq -r '.formulae[]' "$RUNNER_TEMP/ready.json")
