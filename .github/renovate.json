@@ -5,31 +5,18 @@
     ":semanticCommits",
     ":semanticCommitTypeAll(ci)"
   ],
-  "enabledManagers": ["github-actions", "custom.regex"],
+  "enabledManagers": ["github-actions"],
   "automergeStrategy": "squash",
   "rebaseWhen": "behind-base-branch",
   "description": [
-    "update.yml opens formula release PRs and publish.yml supplies their bottles; Renovate updates workflow dependencies."
-  ],
-  "customManagers": [
-    {
-      "description": "Read Homebrew Actions' four-part calendar tags without truncating the version.",
-      "customType": "regex",
-      "managerFilePatterns": ["/^\\.github\\/workflows\\/[^/]+\\.ya?ml$/"],
-      "matchStrings": [
-        "Homebrew/actions/[^@\\s]+@(?<currentDigest>[a-f0-9]{40}) # (?<currentValue>[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]+)"
-      ],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "Homebrew/actions",
-      "versioningTemplate": "loose"
-    }
+    "update.yml opens formula release PRs and publish.yml supplies their bottles; Renovate updates workflow dependencies and actions.lock."
   ],
   "packageRules": [
     {
-      "description": "The github-actions manager truncates Homebrew Actions' tags to three parts, a tag that does not exist, so only the custom manager above updates them.",
+      "description": "Homebrew Actions uses four-part calendar tags, which need loose versioning instead of semver.",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["Homebrew/actions"],
-      "enabled": false
+      "versioning": "loose"
     },
     {
       "description": "test-bot runs cache and artifact upload on pull requests, so their majors merge once checks pass. Release-only actions and runners require separate validation.",

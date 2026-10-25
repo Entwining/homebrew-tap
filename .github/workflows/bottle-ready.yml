@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 20
     steps:
-      - uses: Homebrew/actions/setup-homebrew@eb02c69dbabdb66ff183c614f4ce7ab3c077592c # 2026.10.12.1
+      - uses: Homebrew/actions/setup-homebrew@2026.10.12.1
         id: homebrew
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

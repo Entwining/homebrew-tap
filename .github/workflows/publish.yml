@@ -48,7 +48,7 @@ jobs:
       state: ${{ steps.source.outputs.state }}
       pull_request: ${{ steps.source.outputs.pull_request }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           ref: main
           persist-credentials: false
@@ -74,7 +74,7 @@ jobs:
       id-token: write
       pull-requests: read
     steps:
-      - uses: Homebrew/actions/setup-homebrew@eb02c69dbabdb66ff183c614f4ce7ab3c077592c # 2026.10.12.1
+      - uses: Homebrew/actions/setup-homebrew@2026.10.12.1
         id: homebrew
 
       - name: Resolve the source again before publishing
@@ -89,7 +89,7 @@ jobs:
           cp .github/scripts/{bottle_receipt.rb,resolve-publish.sh} "$RUNNER_TEMP/publish-tools/"
           bash "$RUNNER_TEMP/publish-tools/resolve-publish.sh" "$RUNNER_TEMP/source"
 
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@v8.0.2
         if: steps.source.outputs.state == 'prepare'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -168,14 +168,14 @@ jobs:
 
       - name: Attest the published bottles
         if: steps.source.outputs.state == 'prepare'
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           subject-path: ${{ runner.temp }}/releases/*.tar.gz
 
       - name: Create the tap app's token
         if: contains(fromJSON('["ready","prepare","sync"]'), steps.source.outputs.state)
         id: app-token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@v3.3.0
         with:
           client-id: ${{ vars.TAP_CLIENT_ID }}
           private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}

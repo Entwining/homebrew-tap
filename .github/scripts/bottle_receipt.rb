@@ -100,6 +100,16 @@ module BottleReceipt
     Homebrew::DevCmd::Bottle.new([name]).bottle_output(spec, nil)
   end
 
+  def with_bottle(text, record)
+    ast = Utils::AST::FormulaAST.new(text)
+    block = bottle_block(record)
+    ast.bottle_block ? ast.replace_bottle_block(block) : ast.add_bottle_block(block)
+    result = ast.process
+    raise "Change extends outside the bottle block" if without_bottle(result) != without_bottle(text)
+
+    result
+  end
+
   def ready_formulae(selection)
     selection.fetch("paths").map do |path|
       text = source(selection.fetch("head_sha"), path)
@@ -214,18 +224,11 @@ module BottleReceipt
   def write_plan(records, directory)
     directory = Pathname(directory)
     (directory/"receipts").mkpath
-    (directory/"Formula").mkpath
     (directory/"plan.json").write("#{JSON.pretty_generate(records)}\n")
     records.each do |record|
+      # Validate edits before publication reserves the build.
+      with_bottle(source(record.fetch("head_sha"), record.fetch("path")), record)
       (directory/"receipts/#{key(record)}.json").write("#{JSON.pretty_generate(record)}\n")
-      text = source(record.fetch("head_sha"), record.fetch("path"))
-      ast = Utils::AST::FormulaAST.new(text)
-      block = bottle_block(record)
-      ast.bottle_block ? ast.replace_bottle_block(block) : ast.add_bottle_block(block)
-      result = ast.process
-      raise "Change extends outside the bottle block" if without_bottle(result) != without_bottle(text)
-
-      (directory/record.fetch("path")).write(result)
     end
   end
 
@@ -233,14 +236,12 @@ module BottleReceipt
     branch = selection.fetch("branch")
     additions = records.map do |record|
       path = record.fetch("path")
-      ast = Utils::AST::FormulaAST.new(source(selection.fetch("head_sha"), path))
-      if Digest::SHA256.hexdigest(without_bottle(ast.process)) != record.fetch("source_sha256")
+      text = source(selection.fetch("head_sha"), path)
+      if Digest::SHA256.hexdigest(without_bottle(text)) != record.fetch("source_sha256")
         raise "Formula source changed during publishing"
       end
 
-      block = bottle_block(record)
-      ast.bottle_block ? ast.replace_bottle_block(block) : ast.add_bottle_block(block)
-      { "path" => path, "contents" => [ast.process].pack("m0") }
+      { "path" => path, "contents" => [with_bottle(text, record)].pack("m0") }
     end
     headline = if records.one?
       "build(#{records.first.fetch("formula")}): add #{records.first.fetch("pkg_version")} bottle"
