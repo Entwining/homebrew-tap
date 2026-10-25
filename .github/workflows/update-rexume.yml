@@ -1,0 +1,61 @@
+name: Update rexume
+
+on:
+  repository_dispatch:
+    types: [rexume-release]
+  schedule:
+    - cron: "32 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-rexume
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      # A pull request opened with GITHUB_TOKEN would not start brew test-bot, so the bump goes through the app.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.TAP_CLIENT_ID }}
+          private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478 # 2026.09.28.1
+        id: homebrew
+        with:
+          stable: true
+          # setup-homebrew sets this token as a global git auth header, so bump-formula-pr pushes with it.
+          token: ${{ steps.app-token.outputs.token }}
+      - name: Open a bump pull request from GitHub Releases
+        working-directory: ${{ steps.homebrew.outputs.repository-path }}
+        env:
+          TAP: ${{ steps.homebrew.outputs.tap-name }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          brew livecheck --json --newer-only "$TAP/rexume" > "$RUNNER_TEMP/livecheck.json"
+          latest=$(jq -er '
+            if type != "array" then error("Expected a livecheck array")
+            elif length == 0 then "current"
+            elif length == 1 and .[0].formula == "rexume"
+              and .[0].status == null and .[0].version.outdated == true
+              and (.[0].version.latest | type) == "string"
+              and (.[0].version.latest | test("^0\\.[0-9]+\\.[0-9]+$"))
+            then .[0].version.latest
+            else error("Unexpected or failed livecheck result") end
+          ' "$RUNNER_TEMP/livecheck.json")
+          if [[ "$latest" == current ]]; then
+            printf 'rexume is current\n'
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          brew bump-formula-pr --no-browse --no-fork --tag="v${latest}" "$TAP/rexume"
