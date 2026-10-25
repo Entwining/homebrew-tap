@@ -36,8 +36,8 @@ if [[ ${2:-} == --identify ]]; then
 fi
 helper="$(dirname -- "${BASH_SOURCE[0]}")/bottle_receipt.rb"
 git fetch --no-tags origin "$head_sha" 'refs/tags/publish/*:refs/tags/publish/*'
-gh api "repos/$GITHUB_REPOSITORY/pulls/$pull_request/files" --paginate --slurp \
-  --jq '[.[][] | select(.status != "removed" and (.filename | test("^Formula/[^/]+\\.rb$"))) | .filename]' > "$directory/paths.json"
+gh api "repos/$GITHUB_REPOSITORY/pulls/$pull_request/files" --paginate --slurp |
+  jq '[.[][] | select(.status != "removed" and (.filename | test("^Formula/[^/]+\\.rb$"))) | .filename]' > "$directory/paths.json"
 jq -n --arg repository "$GITHUB_REPOSITORY" --slurpfile pr "$directory/pr.json" --slurpfile paths "$directory/paths.json" '
   {repository: $repository, pull_request: $pr[0].number, head_sha: $pr[0].head.sha,
    branch: $pr[0].head.ref, head_repository: $pr[0].head.repository, paths: $paths[0]}
@@ -89,8 +89,8 @@ if [[ "$state" == prepare ]]; then
   fi
   artifact_id=$(jq -r '.artifact_id // empty' "$directory/seed.json")
   if [[ -z "$artifact_id" ]]; then
-    artifact_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?name=bottles_macos-26-$attempt" \
-      --paginate --slurp --jq '[.[] | .artifacts[]] | if length == 1 then .[0].id else error("Expected one source-build artifact") end')
+    artifact_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?name=bottles_macos-26-$attempt" --paginate --slurp |
+      jq '[.[] | .artifacts[]] | if length == 1 then .[0].id else error("Expected one source-build artifact") end')
   fi
   [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
   gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id" > "$directory/artifact.json"

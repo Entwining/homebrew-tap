@@ -25,6 +25,7 @@ if name == "brew":
     assert args[0] == "ruby"
     print(json.dumps(fixture.get("seed", {}) if args[2] == "seed" else fixture.get("status", {"state": "prepare", "formulae": None})))
     sys.exit(0)
+assert not ("--slurp" in args and ("--jq" in args or "--template" in args))
 if args[0:2] == ["pr", "list"]:
     result = [{"number": 1}]
 else:

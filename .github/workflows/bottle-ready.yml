@@ -31,8 +31,8 @@ jobs:
           set -euo pipefail
           brew install-bundler-gems --add-groups=ast
           git fetch --no-tags origin "$HEAD_SHA" 'refs/tags/publish/*:refs/tags/publish/*'
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PULL_REQUEST/files" --paginate --slurp \
-            --jq '[.[][] | select(.status != "removed" and (.filename | test("^Formula/[^/]+\\.rb$"))) | .filename]' > "$RUNNER_TEMP/paths.json"
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PULL_REQUEST/files" --paginate --slurp |
+            jq '[.[][] | select(.status != "removed" and (.filename | test("^Formula/[^/]+\\.rb$"))) | .filename]' > "$RUNNER_TEMP/paths.json"
           jq -n --arg repository "$GITHUB_REPOSITORY" --arg sha "$HEAD_SHA" --slurpfile paths "$RUNNER_TEMP/paths.json" \
             '{repository: $repository, head_sha: $sha, paths: $paths[0]}' > "$RUNNER_TEMP/selection.json"
           brew ruby .github/scripts/bottle_receipt.rb check "$RUNNER_TEMP/selection.json" > "$RUNNER_TEMP/ready.json"
