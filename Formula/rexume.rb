@@ -13,8 +13,8 @@ class Rexume < Formula
   end
 
   bottle do
-    root_url "https://github.com/Entwining/homebrew-tap/releases/download/rexume-0.1.3"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe: "f1116b6d569ba51178ae5bea6bf18c631cffd147af2113c45e5f0dcdcc83be53"
+    root_url "https://github.com/Entwining/homebrew-tap/releases/download/rexume-0.1.4"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe: "b41b3d3f99d68ad54451b35fa82a73ef56e3eaa73a09ee27169bf7530fc80060"
   end
 
   depends_on "cargo-about" => :build
