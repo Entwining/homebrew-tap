@@ -3,7 +3,7 @@
   "extends": ["github>Entwining/renovate-config"],
   "enabledManagers": ["github-actions", "custom.regex"],
   "description": [
-    "update-agent-guard.yml and update-sessidx.yml bump the formulae with bump-formula-pr, whose pull requests also build and publish bottles, so Renovate updates only the workflows."
+    "update-agent-guard.yml, update-rexume.yml and update-sessidx.yml bump the formulae with bump-formula-pr, whose pull requests also build and publish bottles, so Renovate updates only the workflows."
   ],
   "customManagers": [
     {
