@@ -64,8 +64,9 @@ when "plan"
 when "roundtrip"
   records = BottleReceipt.plan(selection, fixture.fetch("directory"))
   BottleReceipt.write_plan(records, fixture.fetch("output"))
-  text = File.read(File.join(fixture.fetch("output"), "Formula/demo.rb"))
   commit = BottleReceipt.commit_input(selection, records)
+  addition = commit.fetch("variables").fetch("input").fetch("fileChanges").fetch("additions").first
+  text = addition.fetch("contents").unpack1("m0")
   fixture["sources"]["#{fixture.fetch("next_head")}:Formula/demo.rb"] = text
   fixture["tags"] = { "refs/tags/publish/#{BottleReceipt.key(records.first)}" => records.first }
   current = selection.merge("head_sha" => fixture.fetch("next_head"))
