@@ -51,6 +51,12 @@ jobs:
 
       - run: brew test-bot --only-tap-syntax
 
+      - name: Test bottle receipt handling
+        working-directory: ${{ steps.set-up-homebrew.outputs.repository-path }}
+        run: |
+          brew install-bundler-gems --add-groups=ast
+          python3 -m unittest discover -s .github/scripts -p '*_test.py'
+
       - run: brew test-bot --only-formulae
         if: github.event_name == 'pull_request'
 
@@ -59,9 +65,23 @@ jobs:
         env:
           FORMULA: ${{ inputs.formula }}
 
+      - name: Merge and audit candidate bottle metadata
+        if: github.event_name != 'push'
+        env:
+          TAP: ${{ steps.set-up-homebrew.outputs.tap-name }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          bottles=( ./*.bottle.json )
+          if (( ${#bottles[@]} == 0 )); then exit 0; fi
+          brew bottle --merge --write --no-commit --no-all-checks "${bottles[@]}"
+          while IFS= read -r formula; do
+            brew audit --formula --skip-style "$TAP/$formula"
+          done < <(jq -r '.[].formula.name' "${bottles[@]}" | sort -u)
+
       - name: Upload bottles as artifact
         if: always() && github.event_name != 'push'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: bottles_macos-26
+          name: bottles_macos-26-${{ github.run_attempt }}
           path: '*.bottle.*'

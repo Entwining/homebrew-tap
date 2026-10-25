@@ -1,0 +1,120 @@
+name: Update formulae
+
+on:
+  repository_dispatch:
+    types: [agent-guard-release, rexume-release, sessidx-release]
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      formula:
+        type: choice
+        default: all
+        options: [all, agent-guard, rexume, sessidx]
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    strategy:
+      fail-fast: false
+      matrix:
+        formula: ${{ fromJSON(
+          (github.event.action == 'agent-guard-release' || inputs.formula == 'agent-guard') && '["agent-guard"]' ||
+          (github.event.action == 'rexume-release' || inputs.formula == 'rexume') && '["rexume"]' ||
+          (github.event.action == 'sessidx-release' || inputs.formula == 'sessidx') && '["sessidx"]' ||
+          '["agent-guard","rexume","sessidx"]') }}
+    concurrency:
+      group: update-${{ matrix.formula }}
+      cancel-in-progress: false
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ vars.TAP_CLIENT_ID }}
+          private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: Homebrew/actions/setup-homebrew@eb02c69dbabdb66ff183c614f4ce7ab3c077592c # 2026.10.12.1
+        id: homebrew
+        with:
+          stable: true
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Prepare the version update
+        id: bump
+        working-directory: ${{ steps.homebrew.outputs.repository-path }}
+        env:
+          FORMULA: ${{ matrix.formula }}
+          TAP: ${{ steps.homebrew.outputs.tap-name }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          git checkout --detach origin/main
+          brew livecheck --json --newer-only "$TAP/$FORMULA" > "$RUNNER_TEMP/livecheck.json"
+          latest=$(jq -er --arg formula "$FORMULA" '
+            if type != "array" then error("Expected a livecheck array")
+            elif length == 0 then "current"
+            elif length == 1 and .[0].formula == $formula
+              and .[0].status == null and .[0].version.outdated == true
+              and (.[0].version.latest | type) == "string"
+              and (.[0].version.latest | test("^0\\.[0-9]+\\.[0-9]+$"))
+            then .[0].version.latest
+            else error("Unexpected or failed livecheck result") end
+          ' "$RUNNER_TEMP/livecheck.json")
+          if [[ "$latest" == current ]]; then exit 0; fi
+          branch="bump-$FORMULA-$latest"
+          prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state all --json number)
+          if [[ $(jq length <<< "$prs") != 0 ]]; then
+            printf 'A pull request already exists for %s\n' "$branch"
+            exit 0
+          fi
+          brew bump-formula-pr --write-only --tag="v$latest" "$TAP/$FORMULA"
+          git add -- "Formula/$FORMULA.rb"
+          remote_head=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/heads/$branch" \
+            --jq ".[] | select(.ref == \"refs/heads/$branch\") | .object.sha")
+          if [[ -z "$remote_head" ]]; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/heads/$branch" -f "sha=$(git rev-parse HEAD)" --silent
+            echo 'commit=true' >> "$GITHUB_OUTPUT"
+          else
+            git fetch --no-tags origin "$remote_head"
+            if git merge-base --is-ancestor "$remote_head" HEAD; then
+              echo 'commit=true' >> "$GITHUB_OUTPUT"
+            elif [[ $(git rev-parse "$remote_head:Formula/$FORMULA.rb") == $(git hash-object "Formula/$FORMULA.rb") ]] && \
+                 [[ $(git diff --name-only "HEAD...$remote_head") == "Formula/$FORMULA.rb" ]]; then
+              printf 'Resume PR creation from %s\n' "$remote_head"
+            else
+              echo '::error::Existing bump branch differs from the requested update.'
+              exit 1
+            fi
+          fi
+          {
+            echo "branch=$branch"
+            echo "title=chore($FORMULA): update to $latest"
+            echo "body=Updates \`$FORMULA\` to [$latest](https://github.com/Entwining/$FORMULA/releases/tag/v$latest)."
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit the version update
+        if: steps.bump.outputs.commit == 'true'
+        uses: Homebrew/actions/api-commit-and-push@eb02c69dbabdb66ff183c614f4ce7ab3c077592c # 2026.10.12.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          directory: ${{ steps.homebrew.outputs.repository-path }}
+          branch: ${{ steps.bump.outputs.branch }}
+          message: ${{ steps.bump.outputs.title }}
+
+      - name: Open the version pull request
+        if: steps.bump.outputs.branch != ''
+        uses: Homebrew/actions/create-pull-request@eb02c69dbabdb66ff183c614f4ce7ab3c077592c # 2026.10.12.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          head: ${{ steps.bump.outputs.branch }}
+          base: main
+          title: ${{ steps.bump.outputs.title }}
+          body: ${{ steps.bump.outputs.body }}
