@@ -8,31 +8,41 @@ Homebrew formulae and bottles for Entwining tools on Apple Silicon macOS.
 | [rexume](https://github.com/Entwining/rexume) | Restores Rex sessions and agent conversations. | `brew install entwining/tap/rexume` |
 | [sessidx](https://github.com/Entwining/sessidx) | Searches local coding agent sessions. | `brew install entwining/tap/sessidx` |
 
+## Upstream contract
+
+Upstream projects own tool releases and runtime packaging; this tap owns their Homebrew formulae and bottles. The updater follows GitHub's latest stable Release, limited to `v0.MINOR.PATCH` tags. Notify the tap with a `<formula>-release` repository dispatch after creating the Release; tags alone, drafts and prereleases do not qualify. Moving beyond `0.x` requires updating the formula livecheck filters and the updater's version validation first.
+
+Each formula installs the package staged by upstream `make build`. Coordinate changes to its interface (`OUT`, `CARGO_TARGET_DIR`) or build tools in a tap PR that still builds the currently pinned upstream version: add build dependencies before the release that needs them and remove them after. When a recipe change rebuilds an already bottled version, increment the formula's package `revision` and keep its upstream commit pin.
+
 ## Automatic releases
 
-Upstream projects own tool releases; this tap owns their Homebrew formulae and bottles. Releases dispatch `agent-guard-release`, `rexume-release`, or `sessidx-release`. `update.yml` also checks on its schedule and accepts a manual dispatch for one formula. Homebrew updates and audits the formula; Homebrew Actions creates its commit and PR.
+`update.yml` handles upstream notifications, scheduled checks and manual formula selection. Homebrew updates and audits the formula; Homebrew Actions creates its commit and PR.
 
-Version commits and PR titles use `chore(<formula>): update to <version>`, and bottle commits use `build(<formula>): add <version> bottle`. Renovate uses Conventional Commits for workflow updates. The required `commit-policy` check validates titles using the main branch's [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) configuration. GitHub squash commits use the PR title and body.
+Release automation and Renovate use Conventional Commits. The required `commit-policy` check validates PR titles using the main branch's [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) configuration. GitHub squash commits use the PR title and body.
 
-`test-bot` builds from source, packages license notices, runs formula tests, then merges and audits candidate bottle metadata before uploading it. The publisher reserves the successful run, attempt, artifact ID and digest before uploading Release assets. It verifies that the tested tree contains the PR head and identical formula blob, and checks each bottle's upstream revision and checksum. Annotated `publish/<formula>-<version>[.<rebuild>]` tags retain that selection and its tested source.
+`test-bot` builds and tests the formula from source and audits candidate bottle metadata. The publisher reserves that tested build in a protected `publish/<formula>-<version>[.<rebuild>]` receipt tag before uploading Release assets, then appends bottle metadata to the reviewed PR head. GitHub squash merges the original PR after required checks pass and deletes its branch.
 
-The publisher appends bottle metadata to the original PR with GitHub's expected-head precondition. Auto-merge waits for `test-bot`, `bottle-ready`, and `commit-policy`. `bottle-ready` verifies the source-bound receipt, fetches and pours the bottle, and runs `brew test`. Installation changes need a matching bottle even at the same package version.
+`bottle-ready` verifies the receipt, downloads and pours the bottle, and runs `brew test`. Installation changes need a matching bottle even at the same package version.
 
-PR branches must be up to date. The publisher rebases the app's own `bump-*` branches and merges main into contributor branches to preserve their published history. Scheduled reconciliation resumes open, same-repository `bump-*` PRs. GitHub owns the squash merge and branch deletion.
+PR branches must be up to date. The publisher rebases the app's own `bump-*` branches and merges main into contributor branches to preserve their published history. Scheduled reconciliation resumes open, same-repository `bump-*` PRs.
 
 ## Manual publication and recovery
 
-Dispatch **Publish bottles** with the PR number and reviewed head SHA. An optional `run_id` selects its successful `pull_request` source build. A standalone **brew test-bot** dispatch does not qualify as a tested PR head.
+Bottles for PRs outside same-repository `bump-*` branches are published manually. Dispatch **Publish bottles** with the PR number and reviewed head SHA. An optional `run_id` selects its successful `pull_request` source build. A standalone **brew test-bot** dispatch does not qualify as a tested PR head.
 
-Forks require manual dispatch. The publisher prepares a bottle commit in this repository and prints commands to apply it to the original PR. Apply it before updating the fork with main, then wait for checks and dispatch publication for the new head. The original PR remains open until GitHub merges it.
+For forks, the publisher prepares a bottle commit in this repository and prints commands to apply it to the original PR. Apply it before updating the fork with main, then wait for checks and dispatch publication for the new head. The original PR remains open until GitHub merges it.
 
 A retry adopts the receipt's original artifact and completes that reserved build before synchronizing the PR branch. It reuses matching Release assets, uploads missing files, verifies public downloads and attests the published bytes. Conflicting assets or receipts stop publication; existing assets are never overwritten. If the selected artifact expires before completion, preserve the receipt and use a new bottle rebuild or formula revision. A different build cannot claim the reserved filenames.
 
-The read-only resolver identifies the PR before publication is serialized. Publication treats formula Ruby as AST data and creates the app token after uploads and attestation. Formula execution and audits run in ordinary PR CI. Publication posts no PR comments.
+Keep formula execution and audits in ordinary PR CI. Privileged publication treats formula Ruby as AST data and creates the app token after uploads and attestation.
+
+## Adding or removing formulae
+
+Update `Formula/`, the dispatch filters, manual choices and matrix in `.github/workflows/update.yml`, and the installation table together. Add or remove the upstream release notification and its tap App access with the tool.
 
 ## Workflow dependencies
 
-Workflows use readable action tags. GitHub's generated `.github/workflows/actions.lock` pins their commits and repository identities, including transitive action dependencies. Renovate updates references and regenerates the lockfile together, using its native GitHub Actions manager. Homebrew Actions' calendar tags use Renovate's `loose` versioning.
+Workflows use readable action tags. GitHub's generated `.github/workflows/actions.lock` pins their commits and repository identities, including transitive action dependencies. Renovate updates references and regenerates the lockfile together, using its native GitHub Actions manager.
 
 After changing action references or adding a workflow, run `gh actions-lock` and commit its generated changes together. Install the tool with `gh extension install github/gh-actions-lock`.
 
