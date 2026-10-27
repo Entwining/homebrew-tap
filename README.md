@@ -16,7 +16,7 @@ Each formula installs the package staged by upstream `make build`. Coordinate ch
 
 ## Automatic releases
 
-`update.yml` handles upstream notifications, scheduled checks and manual formula selection. Homebrew updates and audits the formula; Homebrew Actions creates its commit and PR.
+`update.yml` handles upstream notifications, scheduled checks and manual formula selection. Homebrew updates and audits the formula; GitHub's `createCommitOnBranch` commits it, and Homebrew Actions opens its PR.
 
 Release automation and Renovate use Conventional Commits. The required `commit-policy` check validates PR titles using the main branch's [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) configuration. GitHub squash commits use the PR title and body.
 
