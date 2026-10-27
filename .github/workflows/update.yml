@@ -85,6 +85,8 @@ jobs:
           else
             git fetch --no-tags origin "$remote_head"
             if git merge-base --is-ancestor "$remote_head" HEAD; then
+              gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" \
+                -f "sha=$(git rev-parse HEAD)" --silent
               echo 'commit=true' >> "$GITHUB_OUTPUT"
             elif [[ $(git rev-parse "$remote_head:Formula/$FORMULA.rb") == $(git hash-object "Formula/$FORMULA.rb") ]] && \
                  [[ $(git diff --name-only "HEAD...$remote_head") == "Formula/$FORMULA.rb" ]]; then
@@ -100,14 +102,29 @@ jobs:
             echo "body=Updates \`$FORMULA\` to [$latest](https://github.com/Entwining/$FORMULA/releases/tag/v$latest)."
           } >> "$GITHUB_OUTPUT"
 
+      # Homebrew/actions/api-commit-and-push also sends the formula's directory without a SHA,
+      # which GitHub rejects, so the commit goes through createCommitOnBranch as the publisher's does.
       - name: Commit the version update
         if: steps.bump.outputs.commit == 'true'
-        uses: Homebrew/actions/api-commit-and-push@2026.10.12.1
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          directory: ${{ steps.homebrew.outputs.repository-path }}
-          branch: ${{ steps.bump.outputs.branch }}
-          message: ${{ steps.bump.outputs.title }}
+        working-directory: ${{ steps.homebrew.outputs.repository-path }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BRANCH: ${{ steps.bump.outputs.branch }}
+          FORMULA: ${{ matrix.formula }}
+          TITLE: ${{ steps.bump.outputs.title }}
+        run: |
+          set -euo pipefail
+          jq -n --arg repository "$GITHUB_REPOSITORY" --arg branch "$BRANCH" --arg head "$(git rev-parse HEAD)" \
+            --arg path "Formula/$FORMULA.rb" --rawfile text "Formula/$FORMULA.rb" --arg headline "$TITLE" '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
+              variables: {input: {
+                branch: {repositoryNameWithOwner: $repository, branchName: $branch},
+                expectedHeadOid: $head,
+                fileChanges: {additions: [{path: $path, contents: ($text | @base64)}]},
+                message: {headline: $headline}
+              }}
+            }' > "$RUNNER_TEMP/commit.json"
+          gh api graphql --input "$RUNNER_TEMP/commit.json" --jq .data.createCommitOnBranch.commit.oid
 
       - name: Open the version pull request
         if: steps.bump.outputs.branch != ''
