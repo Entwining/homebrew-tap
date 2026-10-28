@@ -5,6 +5,7 @@ class Rexume < Formula
       tag:      "v0.1.8",
       revision: "0c887dade9387239562d51d32559843121abbac0"
   license "MIT"
+  revision 1
 
   livecheck do
     url :stable
@@ -27,11 +28,15 @@ class Rexume < Formula
     ENV.O3
     # `make build` stages the whole package, so a packaging change ships with the release that makes it.
     system "make", "build", "OUT=#{prefix}"
+    # After `install`, Homebrew moves the build directory's README.md into the prefix,
+    # over the one `make build` staged with links to the release's documents.
+    rm "README.md"
   end
 
   test do
     assert_equal "rexume #{version}\n", shell_output("#{bin}/rexume --version")
     assert_path_exists prefix/"LICENSE-THIRD-PARTY.md"
+    assert_match "/blob/v#{version}/", (prefix/"README.md").read
     output = shell_output("#{bin}/rexume status --state-dir #{testpath}/state 2>&1", 1)
     assert_match "the daemon creates it", output
   end
