@@ -28,7 +28,7 @@ jobs:
     concurrency:
       group: update-${{ matrix.formula }}
       cancel-in-progress: false
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 15
     steps:
       - uses: actions/create-github-app-token@v3.3.0
