@@ -2,7 +2,7 @@ name: Update formulae
 
 on:
   repository_dispatch:
-    types: [agent-guard-release, rexume-release, sessidx-release]
+    types: [agent-guard-release, maskey-release, rexume-release, sessidx-release]
   schedule:
     - cron: "17 */6 * * *"
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
       formula:
         type: choice
         default: all
-        options: [all, agent-guard, rexume, sessidx]
+        options: [all, agent-guard, maskey, rexume, sessidx]
 
 permissions:
   contents: read
@@ -22,9 +22,10 @@ jobs:
       matrix:
         formula: ${{ fromJSON(
           (github.event.action == 'agent-guard-release' || inputs.formula == 'agent-guard') && '["agent-guard"]' ||
+          (github.event.action == 'maskey-release' || inputs.formula == 'maskey') && '["maskey"]' ||
           (github.event.action == 'rexume-release' || inputs.formula == 'rexume') && '["rexume"]' ||
           (github.event.action == 'sessidx-release' || inputs.formula == 'sessidx') && '["sessidx"]' ||
-          '["agent-guard","rexume","sessidx"]') }}
+          '["agent-guard","maskey","rexume","sessidx"]') }}
     concurrency:
       group: update-${{ matrix.formula }}
       cancel-in-progress: false
@@ -56,11 +57,17 @@ jobs:
         run: |
           set -euo pipefail
           git checkout --detach origin/main
-          brew livecheck --json --newer-only "$TAP/$FORMULA" > "$RUNNER_TEMP/livecheck.json"
-          latest=$(jq -er --arg formula "$FORMULA" '
+          # Apps are casks, which have no bottles to publish.
+          if [[ -f "Casks/$FORMULA.rb" ]]; then
+            type=cask path="Casks/$FORMULA.rb"
+          else
+            type=formula path="Formula/$FORMULA.rb"
+          fi
+          brew livecheck --json --newer-only "--$type" "$TAP/$FORMULA" > "$RUNNER_TEMP/livecheck.json"
+          latest=$(jq -er --arg type "$type" --arg formula "$FORMULA" '
             if type != "array" then error("Expected a livecheck array")
             elif length == 0 then "current"
-            elif length == 1 and .[0].formula == $formula
+            elif length == 1 and .[0][$type] == $formula
               and .[0].status == null and .[0].version.outdated == true
               and (.[0].version.latest | type) == "string"
               and (.[0].version.latest | test("^0\\.[0-9]+\\.[0-9]+$"))
@@ -74,8 +81,12 @@ jobs:
             printf 'A pull request already exists for %s\n' "$branch"
             exit 0
           fi
-          brew bump-formula-pr --write-only --tag="v$latest" "$TAP/$FORMULA"
-          git add -- "Formula/$FORMULA.rb"
+          if [[ "$type" == cask ]]; then
+            brew bump-cask-pr --write-only --version="$latest" "$TAP/$FORMULA"
+          else
+            brew bump-formula-pr --write-only --tag="v$latest" "$TAP/$FORMULA"
+          fi
+          git add -- "$path"
           remote_head=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/heads/$branch" \
             --jq ".[] | select(.ref == \"refs/heads/$branch\") | .object.sha")
           if [[ -z "$remote_head" ]]; then
@@ -88,8 +99,8 @@ jobs:
               gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" \
                 -f "sha=$(git rev-parse HEAD)" --silent
               echo 'commit=true' >> "$GITHUB_OUTPUT"
-            elif [[ $(git rev-parse "$remote_head:Formula/$FORMULA.rb") == $(git hash-object "Formula/$FORMULA.rb") ]] && \
-                 [[ $(git diff --name-only "HEAD...$remote_head") == "Formula/$FORMULA.rb" ]]; then
+            elif [[ $(git rev-parse "$remote_head:$path") == $(git hash-object "$path") ]] && \
+                 [[ $(git diff --name-only "HEAD...$remote_head") == "$path" ]]; then
               printf 'Resume PR creation from %s\n' "$remote_head"
             else
               echo '::error::Existing bump branch differs from the requested update.'
@@ -98,6 +109,7 @@ jobs:
           fi
           {
             echo "branch=$branch"
+            echo "path=$path"
             echo "title=chore($FORMULA): update to $latest"
             echo "body=Updates \`$FORMULA\` to [$latest](https://github.com/Entwining/$FORMULA/releases/tag/v$latest)."
           } >> "$GITHUB_OUTPUT"
@@ -110,12 +122,12 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BRANCH: ${{ steps.bump.outputs.branch }}
-          FORMULA: ${{ matrix.formula }}
+          FILE: ${{ steps.bump.outputs.path }}
           TITLE: ${{ steps.bump.outputs.title }}
         run: |
           set -euo pipefail
           jq -n --arg repository "$GITHUB_REPOSITORY" --arg branch "$BRANCH" --arg head "$(git rev-parse HEAD)" \
-            --arg path "Formula/$FORMULA.rb" --rawfile text "Formula/$FORMULA.rb" --arg headline "$TITLE" '{
+            --arg path "$FILE" --rawfile text "$FILE" --arg headline "$TITLE" '{
               query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
               variables: {input: {
                 branch: {repositoryNameWithOwner: $repository, branchName: $branch},

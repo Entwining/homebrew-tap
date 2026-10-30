@@ -1,22 +1,23 @@
 # Entwining Homebrew tap
 
-Homebrew formulae and bottles for Entwining tools on Apple Silicon macOS.
+Homebrew formulae and bottles, and casks for apps, for Entwining tools on Apple Silicon macOS.
 
 | Tool | Purpose | Install |
 | --- | --- | --- |
 | [Agent Guard](https://github.com/Entwining/agent-guard) | Guards agent filesystem scans and credential reads. | `brew install entwining/tap/agent-guard` |
+| [Maskey](https://github.com/Entwining/maskey) | Keeps credentials in iCloud Keychain and passes them to commands, masked. | `brew install --cask entwining/tap/maskey` |
 | [rexume](https://github.com/Entwining/rexume) | Restores Rex sessions and agent conversations. | `brew install entwining/tap/rexume` |
 | [sessidx](https://github.com/Entwining/sessidx) | Searches local coding agent sessions. | `brew install entwining/tap/sessidx` |
 
 ## Upstream contract
 
-Upstream projects own tool releases and runtime packaging; this tap owns their Homebrew formulae and bottles. The updater follows GitHub's latest stable Release, limited to `v0.MINOR.PATCH` tags. Notify the tap with a `<formula>-release` repository dispatch after creating the Release; tags alone, drafts and prereleases do not qualify. Moving beyond `0.x` requires updating the formula livecheck filters and the updater's version validation first.
+Upstream projects own tool releases and runtime packaging; this tap owns their Homebrew formulae, bottles and casks. The updater follows GitHub's latest stable Release, limited to `v0.MINOR.PATCH` tags. Notify the tap with a `<formula>-release` repository dispatch after creating the Release; tags alone, drafts and prereleases do not qualify. Moving beyond `0.x` requires updating the formula livecheck filters and the updater's version validation first.
 
 Each formula installs the package staged by upstream `make build`. Coordinate changes to its interface (`OUT`, `CARGO_TARGET_DIR`) or build tools in a tap PR that still builds the currently pinned upstream version: add build dependencies before the release that needs them and remove them after. When a recipe change rebuilds an already bottled version, increment the formula's package `revision` and keep its upstream commit pin.
 
 ## Automatic releases
 
-`update.yml` handles upstream notifications, scheduled checks and manual formula selection. Homebrew updates and audits the formula; GitHub's `createCommitOnBranch` commits it, and Homebrew Actions opens its PR.
+`update.yml` handles upstream notifications, scheduled checks and manual formula selection. Homebrew updates and audits the formula or cask; GitHub's `createCommitOnBranch` commits it, and Homebrew Actions opens its PR.
 
 Release automation and Renovate use Conventional Commits. The required `commit-policy` check validates PR titles using the main branch's [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) configuration. GitHub squash commits use the PR title and body.
 
@@ -38,7 +39,7 @@ Keep formula execution and audits in ordinary PR CI. Privileged publication trea
 
 ## Adding or removing formulae
 
-Update `Formula/`, the dispatch filters, manual choices and matrix in `.github/workflows/update.yml`, and the installation table together. Add or remove the upstream release notification and its tap App access with the tool.
+Update `Formula/`, or `Casks/` for an app, the dispatch filters, manual choices and matrix in `.github/workflows/update.yml`, and the installation table together. A cask installs the upstream Release archive, so it has no bottles and no `make build` interface. Add or remove the upstream release notification and its tap App access with the tool.
 
 ## Workflow dependencies
 
