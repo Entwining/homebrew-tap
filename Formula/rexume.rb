@@ -2,8 +2,8 @@ class Rexume < Formula
   desc "Restore Rex sessions and agent conversations after the server restarts"
   homepage "https://github.com/Entwining/rexume"
   url "https://github.com/Entwining/rexume.git",
-      tag:      "v0.1.12",
-      revision: "f58ba0c7ed9b08bb488f808b69c0198171108c87"
+      tag:      "v0.1.13",
+      revision: "a27524a93ce11d2b3952084703010a38e5fdcd21"
   license "MIT"
 
   livecheck do
