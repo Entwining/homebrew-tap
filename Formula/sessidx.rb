@@ -2,8 +2,8 @@ class Sessidx < Formula
   desc "Index local coding agent session logs for lookup and counts"
   homepage "https://github.com/Entwining/sessidx"
   url "https://github.com/Entwining/sessidx.git",
-      tag:      "v0.0.12",
-      revision: "dd9b63787e5d409c03b3d27b3a750739578bab7d"
+      tag:      "v0.0.13",
+      revision: "5a783c5baeaecbd8fe40b21f950ed5c23611c62f"
   license "MIT"
 
   livecheck do
