@@ -52,8 +52,7 @@ class ResolvePublishTests(unittest.TestCase):
             client = self.bin / name
             client.write_text(f"#!{sys.executable}\n" + CLIENT)
             client.chmod(0o755)
-        self.pr = {"number": 1, "node_id": "PR_fixture", "user": {"login": "entwining-release[bot]"},
-                   "state": "open", "merged": False, "draft": False, "mergeable_state": "clean",
+        self.pr = {"number": 1, "state": "open", "merged": False, "draft": False,
                    "head": {"sha": HEAD, "ref": "bump-demo-0.1.2", "repo": {"full_name": REPOSITORY}}, "base": {"ref": "main"}}
         self.run = {"id": 101, "run_attempt": 1, "conclusion": "success"}
         self.artifact = {"id": 201, "digest": "sha256:" + "d" * 64, "expired": False}
@@ -77,8 +76,7 @@ class ResolvePublishTests(unittest.TestCase):
         env = {
             "PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": str(self.path),
             "FIXTURE": str(config), "CALLS": str(calls), "GITHUB_OUTPUT": str(output),
-            "GITHUB_STEP_SUMMARY": str(self.path / "summary"), "GITHUB_REPOSITORY": REPOSITORY,
-            "PULL_REQUEST": "1", "EXPECTED_SHA": HEAD, "SOURCE_RUN_ID": "101", "SOURCE_RUN_ATTEMPT": "1",
+            "GITHUB_REPOSITORY": REPOSITORY, "PULL_REQUEST": "1", "EXPECTED_SHA": HEAD, "SOURCE_RUN_ID": "101", "SOURCE_RUN_ATTEMPT": "1",
             **overrides,
         }
         command = ["bash", str(ROOT / ".github/scripts/resolve-publish.sh"), str(self.path / "source")]
@@ -95,9 +93,6 @@ class ResolvePublishTests(unittest.TestCase):
         selection = json.loads((self.path / "source/selection.json").read_text())
         self.assertEqual(selection["run"]["id"], 101)
         self.assertEqual(selection["artifact"]["id"], 201)
-        details = json.loads((self.path / "source/pr.json").read_text())
-        self.assertEqual(details["node_id"], "PR_fixture")
-        self.assertEqual(details["author"], "entwining-release[bot]")
         self.assertTrue(all("-X" not in call for call in calls))
 
     def test_a_new_head_invalidates_the_old_trigger(self):
@@ -113,35 +108,7 @@ class ResolvePublishTests(unittest.TestCase):
         self.assertEqual(outputs, {"state": "active", "pull_request": "1", "head_sha": HEAD})
         self.assertFalse(any(call[0] in ("git", "brew") or "/actions/" in str(call) for call in calls))
 
-    def test_behind_branches_without_receipts_sync_before_selecting_bottles(self):
-        self.pr["mergeable_state"] = "behind"
-        result, outputs, calls = self.run_case()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(outputs["state"], "sync")
-        self.assertEqual(outputs["head_sha"], HEAD)
-        self.assertFalse(any("/actions/" in str(call) for call in calls))
-
-    def test_behind_ready_heads_sync_without_selecting_a_build(self):
-        self.pr["mergeable_state"] = "behind"
-        self.fixture["status"] = {"state": "ready", "formulae": ["demo"]}
-        for repository, expected in [(REPOSITORY, "sync"), ("contributor/homebrew-tap", "waiting")]:
-            with self.subTest(repository=repository):
-                self.pr["head"]["repo"]["full_name"] = repository
-                result, outputs, calls = self.run_case()
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(outputs["state"], expected)
-                self.assertFalse(any("/actions/" in str(call) for call in calls))
-
-    def test_behind_forks_wait_for_the_contributor(self):
-        self.pr["mergeable_state"] = "behind"
-        self.pr["head"]["repo"]["full_name"] = "contributor/homebrew-tap"
-        result, outputs, _ = self.run_case()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(outputs["state"], "waiting")
-        self.assertIn("fork branch", (self.path / "summary").read_text())
-
-    def test_recovery_resumes_the_receipt_before_branch_sync(self):
-        self.pr["mergeable_state"] = "behind"
+    def test_recovery_resumes_the_receipted_build(self):
         self.fixture["seed"] = {"run_id": 101, "run_attempt": 1, "artifact_id": 201, "artifact_digest": self.artifact["digest"]}
         for repository in [REPOSITORY, "contributor/homebrew-tap"]:
             with self.subTest(repository=repository):

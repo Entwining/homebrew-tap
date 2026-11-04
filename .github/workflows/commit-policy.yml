@@ -3,16 +3,20 @@ name: PR title
 on:
   pull_request_target:
     types: [opened, edited, reopened, synchronize]
+  # The merge queue needs every required check reported; the title was checked before it queued.
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   pull-requests: read
 
 concurrency:
-  group: pr-title-${{ github.event.pull_request.number }}
+  group: pr-title-${{ github.event.pull_request.number || github.event.merge_group.head_ref }}
   cancel-in-progress: true
 
 jobs:
   commit-policy:
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

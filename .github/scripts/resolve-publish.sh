@@ -14,7 +14,7 @@ if [[ "$pull_request" == 0 ]]; then
 fi
 [[ "$pull_request" =~ ^[1-9][0-9]*$ ]]
 gh api "repos/$GITHUB_REPOSITORY/pulls/$pull_request" \
-  --jq '{number, node_id, author: .user.login, state, merged, draft, mergeable_state, head: {sha: .head.sha, ref: .head.ref, repository: .head.repo.full_name}, base: .base.ref}' > "$directory/pr.json"
+  --jq '{number, state, merged, draft, head: {sha: .head.sha, ref: .head.ref, repository: .head.repo.full_name}, base: .base.ref}' > "$directory/pr.json"
 head_sha=$(jq -r .head.sha "$directory/pr.json")
 if ! jq -e --arg expected "$EXPECTED_SHA" '
   .state == "open" and .merged == false and .draft == false and .base == "main" and .head.sha == $expected
@@ -46,23 +46,6 @@ brew ruby "$helper" status "$directory/selection.json" > "$directory/status.json
 state=$(jq -r .state "$directory/status.json")
 if [[ "$state" == prepare ]]; then
   brew ruby "$helper" seed "$directory/selection.json" > "$directory/seed.json"
-fi
-# Resume the reserved build before changing the head its receipt binds.
-if jq -e '.mergeable_state == "behind"' "$directory/pr.json" > /dev/null &&
-   { [[ "$state" == ready ]] || jq -e 'length == 0' "$directory/seed.json" > /dev/null; }; then
-  if [[ $(jq -r .head.repository "$directory/pr.json") != "$GITHUB_REPOSITORY" ]]; then
-    echo 'Update the fork branch with main before dispatching publication for its new reviewed head.' >> "$GITHUB_STEP_SUMMARY"
-    echo 'state=waiting' >> "$GITHUB_OUTPUT"
-    exit 0
-  fi
-  {
-    echo 'state=sync'
-    echo "pull_request=$pull_request"
-    echo "head_sha=$head_sha"
-  } >> "$GITHUB_OUTPUT"
-  exit 0
-fi
-if [[ "$state" == prepare ]]; then
   run_id=$(jq -r '.run_id // empty' "$directory/seed.json")
   attempt=$(jq -r '.run_attempt // empty' "$directory/seed.json")
   if [[ -z "$run_id" ]]; then
