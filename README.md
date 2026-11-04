@@ -21,19 +21,19 @@ Each formula installs the package staged by upstream `make build`. Coordinate ch
 
 Release automation and Renovate use Conventional Commits. The required `commit-policy` check validates PR titles using the main branch's [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) configuration. GitHub squash commits use the PR title and body.
 
-`test-bot` builds and tests the formula from source and audits candidate bottle metadata. The publisher reserves that tested build in a protected `publish/<formula>-<version>[.<rebuild>]` receipt tag before uploading Release assets, then appends bottle metadata to the reviewed PR head. GitHub squash merges the original PR after required checks pass and deletes its branch.
+`test-bot` builds and tests the formula from source and audits candidate bottle metadata. The publisher reserves that tested build in a protected `publish/<formula>-<version>[.<rebuild>]` receipt tag before uploading Release assets, then appends bottle metadata to the reviewed PR head and enables auto-merge. Once the PR's checks pass, GitHub adds it to the merge queue, which squash merges it and deletes its branch.
 
-`bottle-ready` verifies the receipt, downloads and pours the bottle, and runs `brew test`. Installation changes need a matching bottle even at the same package version.
+`bottle-ready` runs in the merge queue, on the commit the queue would land: it verifies the receipt, downloads and pours the bottle, and runs `brew test`. On the PR itself it reports skipped, because the bottle commit arrives only after `test-bot` passes there. Installation changes need a matching bottle even at the same package version.
 
-PR branches must be up to date. The publisher rebases the app's own `bump-*` branches and merges main into contributor branches to preserve their published history. Scheduled reconciliation resumes open, same-repository `bump-*` PRs.
+The merge queue tests each PR on the latest main, where `test-bot` reruns its syntax and script checks without building formulae, so PR branches need not be up to date. Scheduled reconciliation resumes open, same-repository `bump-*` PRs.
 
 ## Manual publication and recovery
 
 Bottles for PRs outside same-repository `bump-*` branches are published manually. Dispatch **Publish bottles** with the PR number and reviewed head SHA. An optional `run_id` selects its successful `pull_request` source build. A standalone **brew test-bot** dispatch does not qualify as a tested PR head.
 
-For forks, the publisher prepares a bottle commit in this repository and prints commands to apply it to the original PR. Apply it before updating the fork with main, then wait for checks and dispatch publication for the new head. The original PR remains open until GitHub merges it.
+For forks, the publisher prepares a bottle commit in this repository and prints commands to apply it to the original PR. Apply it, then wait for checks and dispatch publication for the new head. The original PR remains open until the merge queue merges it.
 
-A retry adopts the receipt's original artifact and completes that reserved build before synchronizing the PR branch. It reuses matching Release assets, uploads missing files, verifies public downloads and attests the published bytes. Conflicting assets or receipts stop publication; existing assets are never overwritten. If the selected artifact expires before completion, preserve the receipt and use a new bottle rebuild or formula revision. A different build cannot claim the reserved filenames.
+A retry adopts the receipt's original artifact and completes that reserved build. It reuses matching Release assets, uploads missing files, verifies public downloads and attests the published bytes. Conflicting assets or receipts stop publication; existing assets are never overwritten. If the selected artifact expires before completion, preserve the receipt and use a new bottle rebuild or formula revision. A different build cannot claim the reserved filenames.
 
 Keep formula execution and audits in ordinary PR CI. Privileged publication treats formula Ruby as AST data and creates the app token after uploads and attestation.
 
@@ -50,10 +50,10 @@ After changing action references or adding a workflow, run `gh actions-lock` and
 ## Repository settings
 
 - Allow squash merges and auto-merge. Disable merge commits and rebase merges. Set squash defaults to `PR_TITLE` and `PR_BODY`; enable branch deletion after merge.
-- In the active `main` ruleset, require `test-bot`, `bottle-ready`, and `commit-policy` from GitHub Actions, with branches required to be up to date. Allow only squash merges and require linear history. Keep deletion and force-push restrictions; the tap app has no bypass.
+- In the active `main` ruleset, require a squash merge queue and `test-bot`, `bottle-ready`, and `commit-policy` from GitHub Actions, without requiring branches to be up to date. Every required check must report on `merge_group` events, or the queue cannot merge. Allow only squash merges and require linear history. Keep deletion and force-push restrictions; the tap app has no bypass.
 - Protect `refs/tags/publish/**` with an active tag ruleset prohibiting updates and deletion, with no bypass actors. Allow creation.
 - Require lockfiles through an active Actions policy targeting all workflows.
-- In a separate active Actions event policy, target only `.github/workflows/commit-policy.yml` and allow only `pull_request_target`. This keeps the title rule defined by main when GitHub restricts that event by default.
+- In a separate active Actions event policy, target only `.github/workflows/commit-policy.yml` and allow only `pull_request_target` and `merge_group`. This keeps the title rule defined by main when GitHub restricts that event by default.
 - Keep `TAP_CLIENT_ID` as a repository variable and `TAP_APP_PRIVATE_KEY` as a secret. The app needs contents and pull-request write access; the workflow token reads Actions artifacts.
 
 ## Local checks

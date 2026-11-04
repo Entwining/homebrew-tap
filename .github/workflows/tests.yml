@@ -5,6 +5,8 @@ on:
     branches:
       - main
   pull_request:
+  merge_group:
+    types: [checks_requested]
   # Bottles a formula whose current version has none; test-bot otherwise bottles only formulae a pull request changes.
   workflow_dispatch:
     inputs:
@@ -66,7 +68,7 @@ jobs:
           FORMULA: ${{ inputs.formula }}
 
       - name: Merge and audit candidate bottle metadata
-        if: github.event_name != 'push'
+        if: contains(fromJSON('["pull_request","workflow_dispatch"]'), github.event_name)
         env:
           TAP: ${{ steps.set-up-homebrew.outputs.tap-name }}
           HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -80,7 +82,7 @@ jobs:
           done < <(jq -r '.[].formula.name' "${bottles[@]}" | sort -u)
 
       - name: Upload bottles as artifact
-        if: always() && github.event_name != 'push'
+        if: always() && contains(fromJSON('["pull_request","workflow_dispatch"]'), github.event_name)
         uses: actions/upload-artifact@v7.0.2
         with:
           name: bottles_macos-26-${{ github.run_attempt }}

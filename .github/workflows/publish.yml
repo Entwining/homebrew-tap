@@ -173,7 +173,7 @@ jobs:
           subject-path: ${{ runner.temp }}/releases/*.tar.gz
 
       - name: Create the tap app's token
-        if: contains(fromJSON('["ready","prepare","sync"]'), steps.source.outputs.state)
+        if: contains(fromJSON('["ready","prepare"]'), steps.source.outputs.state)
         id: app-token
         uses: actions/create-github-app-token@v3.3.0
         with:
@@ -214,52 +214,25 @@ jobs:
           sha=$(gh api graphql --input "$RUNNER_TEMP/commit.json" --jq .data.createCommitOnBranch.commit.oid)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-      - name: Request GitHub squash merge or show the fork patch
-        if: contains(fromJSON('["ready","prepare","sync"]'), steps.source.outputs.state)
+      - name: Queue the pull request or show the fork patch
+        if: contains(fromJSON('["ready","prepare"]'), steps.source.outputs.state)
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BOTTLE_SHA: ${{ steps.commit.outputs.sha || steps.source.outputs.head_sha }}
-          TAP_BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
         run: |
           selection="$RUNNER_TEMP/source/selection.json"
           pull_request=$(jq -r .pull_request "$selection")
-          update_branch() {
-            local method=MERGE
-            if [[ $(jq -r .head.ref "$RUNNER_TEMP/source/pr.json") == bump-* && \
-                  $(jq -r .author "$RUNNER_TEMP/source/pr.json") == "$TAP_BOT_LOGIN" ]]; then
-              method=REBASE
-            fi
-            # shellcheck disable=SC2016
-            gh api graphql -f query='
-              mutation($pr: ID!, $head: GitObjectID!, $method: PullRequestBranchUpdateMethod!) {
-                updatePullRequestBranch(input: {pullRequestId: $pr, expectedHeadOid: $head, updateMethod: $method}) {
-                  clientMutationId
-                }
-              }' -f "pr=$(jq -r .node_id "$RUNNER_TEMP/source/pr.json")" \
-              -f "head=$BOTTLE_SHA" -f "method=$method" --silent
-          }
-          if [[ $(jq -r .head_repository "$selection") == "$GITHUB_REPOSITORY" && \
-                $(jq -r .mergeable_state "$RUNNER_TEMP/source/pr.json") == behind ]]; then
-            update_branch
-            exit 0
-          fi
           if [[ $(jq -r .head_repository "$selection") != "$GITHUB_REPOSITORY" && $(jq -r .state "$RUNNER_TEMP/source/status.json") != ready ]]; then
             branch="publish/pr-$pull_request-$(jq -r .head_sha "$selection")"
             {
-              printf 'The original PR remains open. Apply the bottle commit, update with main, then dispatch Publish bottles for the new head.\n\n'
+              printf 'The original PR remains open. Apply the bottle commit, then dispatch Publish bottles for the new head.\n\n'
               printf '```sh\ngh pr checkout %s --repo %s\n' "$pull_request" "$GITHUB_REPOSITORY"
-              printf 'git fetch https://github.com/%s %s\ngit merge --ff-only FETCH_HEAD\n' "$GITHUB_REPOSITORY" "$branch"
-              printf 'git fetch https://github.com/%s main\ngit merge --no-edit FETCH_HEAD\ngit push\n```\n' "$GITHUB_REPOSITORY"
+              printf 'git fetch https://github.com/%s %s\ngit merge --ff-only FETCH_HEAD\ngit push\n```\n' "$GITHUB_REPOSITORY" "$branch"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          gh pr merge "$pull_request" --repo "$GITHUB_REPOSITORY" --auto --squash --match-head-commit "$BOTTLE_SHA"
-          gh pr view "$pull_request" --repo "$GITHUB_REPOSITORY" \
-            --json state,headRefOid,mergeStateStatus > "$RUNNER_TEMP/merge.json"
-          if [[ $(jq -r .head_repository "$selection") == "$GITHUB_REPOSITORY" ]] && \
-             jq -e --arg sha "$BOTTLE_SHA" '.state == "OPEN" and .headRefOid == $sha and .mergeStateStatus == "BEHIND"' "$RUNNER_TEMP/merge.json" > /dev/null; then
-            update_branch
-          fi
+          # The merge queue squash merges; this queues the pull request once its checks pass.
+          gh pr merge "$pull_request" --repo "$GITHUB_REPOSITORY" --auto --match-head-commit "$BOTTLE_SHA"
 
   sweep:
     if: github.event_name == 'schedule'
