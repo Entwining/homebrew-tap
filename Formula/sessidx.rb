@@ -2,8 +2,8 @@ class Sessidx < Formula
   desc "Index local coding agent session logs for lookup and counts"
   homepage "https://github.com/Entwining/sessidx"
   url "https://github.com/Entwining/sessidx.git",
-      tag:      "v0.0.14",
-      revision: "d983a3309af93353d226f7a0d8eb7736c1cf9228"
+      tag:      "v0.0.15",
+      revision: "8864ecfde7f144ea2e804b15d898b63b89673e03"
   license "MIT"
 
   livecheck do
@@ -13,8 +13,8 @@ class Sessidx < Formula
   end
 
   bottle do
-    root_url "https://github.com/Entwining/homebrew-tap/releases/download/sessidx-0.0.14"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe: "4b736a973a6ea4c0bf8f027b1b11e390aff0113e982d9aac519898d5f59c9190"
+    root_url "https://github.com/Entwining/homebrew-tap/releases/download/sessidx-0.0.15"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe: "4fb3f19b422ca18ab255148ed7c28c3653071d594bbdf93610efea65070a098f"
   end
 
   depends_on "cargo-about" => :build
