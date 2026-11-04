@@ -7,7 +7,6 @@
   ],
   "enabledManagers": ["github-actions"],
   "automergeStrategy": "squash",
-  "rebaseWhen": "behind-base-branch",
   "description": [
     "update.yml opens formula release PRs and publish.yml supplies their bottles; Renovate updates workflow dependencies and actions.lock."
   ],
