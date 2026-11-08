@@ -74,7 +74,7 @@ jobs:
       id-token: write
       pull-requests: read
     steps:
-      - uses: Homebrew/actions/setup-homebrew@2026.10.19.1
+      - uses: Homebrew/actions/setup-homebrew@2026.10.26.1
         id: homebrew
 
       - name: Resolve the source again before publishing
