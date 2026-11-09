@@ -1,6 +1,6 @@
 cask "maskey" do
-  version "0.0.9"
-  sha256 "056aa238ffa95da278d020aa8c62c579c951e797b1fdea9e28c1692a7edff8ff"
+  version "0.0.10"
+  sha256 "b9d8f319d965bc6f9780f3fad89dd5d394531d63f63b72529fa81cb45a563898"
 
   url "https://github.com/Entwining/maskey/releases/download/v#{version}/maskey-#{version}-darwin-arm64.tar.gz"
   name "Maskey"
