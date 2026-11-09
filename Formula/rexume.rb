@@ -2,8 +2,8 @@ class Rexume < Formula
   desc "Restore Rex sessions and agent conversations after the server restarts"
   homepage "https://github.com/Entwining/rexume"
   url "https://github.com/Entwining/rexume.git",
-      tag:      "v0.1.20",
-      revision: "7e9b4a4f2d8d03bb34d81d02269c8fe21ff47985"
+      tag:      "v0.1.21",
+      revision: "797284c6717e976320f6db7213f3f81e8e7c7dd2"
   license "MIT"
 
   livecheck do
@@ -13,8 +13,8 @@ class Rexume < Formula
   end
 
   bottle do
-    root_url "https://github.com/Entwining/homebrew-tap/releases/download/rexume-0.1.20"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe: "c0fd7635fbc25065522d51183b27044159e322f5fd3b6827ba85501b34b209fd"
+    root_url "https://github.com/Entwining/homebrew-tap/releases/download/rexume-0.1.21"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe: "653f252baa1ddc937bdf1d861c95cb5d6d67f4b987060b5a5db4be7fbe6c3fec"
   end
 
   depends_on "cargo-about" => :build
