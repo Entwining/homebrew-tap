@@ -9,7 +9,7 @@ Homebrew packages for Entwining tools on Apple Silicon macOS. Formulae ship comm
 | [Agent Guard](https://github.com/Entwining/agent-guard) | `brew install entwining/tap/agent-guard` |
 | [Maskey](https://github.com/Entwining/maskey) | `brew install --cask entwining/tap/maskey` |
 | [Rexume](https://github.com/Entwining/rexume) | `brew install entwining/tap/rexume` |
-| [sessidx](https://github.com/Entwining/sessidx) | `brew install entwining/tap/sessidx` |
+| [Sessidx](https://github.com/Entwining/sessidx) | `brew install entwining/tap/sessidx` |
 
 ## Upstream contract
 
