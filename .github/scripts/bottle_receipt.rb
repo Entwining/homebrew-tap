@@ -169,9 +169,15 @@ module BottleReceipt
                                                               ) != head
     raise "Artifact has expired" if artifact.fetch("expired")
     raise "Artifact has no immutable digest" unless artifact.fetch("digest").match?(/\Asha256:[0-9a-f]{64}\z/)
-    if artifact.fetch("name") != "bottles-#{run.fetch("run_attempt")}"
-      raise "Artifact attempt does not match"
-    end
+
+    attempt = run.fetch("run_attempt")
+    names = ["bottles-#{attempt}"]
+    # Builds reserved before test-bot merged its runners' bottles carry their macos-26 artifact's name.
+    # Only their own receipt can resume them; this is unneeded once those artifacts have expired.
+    reserved = { "run_id" => run.fetch("id"), "run_attempt" => attempt,
+                 "artifact_id" => artifact.fetch("id"), "artifact_digest" => artifact.fetch("digest") }
+    names << "bottles_macos-26-#{attempt}" if seed(selection) == reserved
+    raise "Artifact attempt does not match" if names.exclude?(artifact.fetch("name"))
 
     directory = Pathname(directory)
     entries = directory.children

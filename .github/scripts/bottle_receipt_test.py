@@ -47,7 +47,7 @@ Utils.define_singleton_method(:safe_popen_read) do |*args|
       record = fixture.fetch("tags", {})[args[3]]
       record ? JSON.generate(record) + "\n" : ""
     else
-      fixture.fetch("tags", {}).keys.map { |ref| ref.delete_prefix("refs/tags/") }.join("\n") + "\n"
+      fixture.fetch("tags", {}).keys.map { |ref| "#{ref.delete_prefix("refs/tags/")}\n" }.join
     end
   else
     raise "Unexpected Git operation: #{args.inspect}"
@@ -218,6 +218,30 @@ class BottleReceiptTests(unittest.TestCase):
         self.published()
         self.fixture["bottle_tags"]["demo"] = "arm64_sequoia"
         self.assertIsNone(self.run_case("ready"))
+
+    def legacy_reservation(self):
+        record = self.run_case()[0]
+        self.fixture["tags"] = {"refs/tags/publish/demo-0.1.2": record}
+        self.fixture["selection"]["artifact"]["name"] = "bottles_macos-26-1"
+        return record
+
+    def test_build_reserved_under_the_former_artifact_name_resumes(self):
+        record = self.legacy_reservation()
+        self.assertEqual(self.run_case(), [record])
+
+    def test_former_artifact_name_needs_its_own_reservation(self):
+        self.legacy_reservation()
+        reserved = self.fixture["tags"]
+        for change in [None, {"artifact_id": 202}, {"artifact_digest": "sha256:" + "e" * 64}, {"run_attempt": 2}]:
+            with self.subTest(change=change):
+                self.fixture["tags"] = {} if change is None else {
+                    ref: {**record, **change} for ref, record in reserved.items()}
+                self.assertIn("Artifact attempt does not match", self.run_case(success=False))
+
+    def test_reserved_build_of_a_former_tag_cannot_resume(self):
+        self.legacy_reservation()
+        self.fixture["bottle_tags"]["demo"] = "arm64_sequoia"
+        self.assertIn("Expected the arm64_sequoia bottle", self.run_case(success=False))
 
     def test_tested_commit_must_contain_source_head(self):
         self.fixture["parents"][TREE] = ["b" * 40]

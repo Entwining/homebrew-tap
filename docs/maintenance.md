@@ -24,7 +24,7 @@ Bottles for PRs outside same-repository `bump-*` branches are published manually
 
 For forks, the publisher prepares a bottle commit in this repository and prints commands to apply it to the original PR. Apply it, then wait for checks and dispatch publication for the new head. The original PR remains open until the merge queue merges it.
 
-A retry adopts the receipt's original artifact and completes that reserved build. It reuses matching Release assets, uploads missing files, verifies public downloads and attests the published bytes. Conflicting assets or receipts stop publication; existing assets are never overwritten. If the selected artifact expires before completion, preserve the receipt and use a new bottle rebuild or formula revision. A different build cannot claim the reserved filenames.
+A retry adopts the receipt's original artifact and completes that reserved build. It reuses matching Release assets, uploads missing files, verifies public downloads and attests the published bytes. Conflicting assets or receipts stop publication; existing assets are never overwritten. If the selected artifact expires before completion, preserve the receipt and use a new bottle rebuild or formula revision. A reserved build whose bottle tag the formula no longer uses cannot complete either; publish a formula revision from a new head. A different build cannot claim the reserved filenames.
 
 Keep formula execution and audits in ordinary PR CI. Privileged publication treats formula Ruby as AST data and creates the app token after uploads and attestation.
 
