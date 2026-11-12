@@ -72,7 +72,7 @@ if [[ "$state" == prepare ]]; then
   fi
   artifact_id=$(jq -r '.artifact_id // empty' "$directory/seed.json")
   if [[ -z "$artifact_id" ]]; then
-    artifact_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?name=bottles_macos-26-$attempt" --paginate --slurp |
+    artifact_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?name=bottles-$attempt" --paginate --slurp |
       jq '[.[] | .artifacts[]] | if length == 1 then .[0].id else error("Expected one source-build artifact") end')
   fi
   [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]

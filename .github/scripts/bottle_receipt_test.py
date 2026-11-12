@@ -32,6 +32,8 @@ DRIVER = r'''
 require ARGV.shift
 fixture = JSON.parse(File.read(ARGV.shift))
 operation = ARGV.shift
+BottleReceipt.send(:remove_const, :BOTTLE_TAGS)
+BottleReceipt.const_set(:BOTTLE_TAGS, fixture.fetch("bottle_tags"))
 Utils.define_singleton_method(:safe_popen_read) do |*args|
   raise "Unexpected client: #{args.inspect}" unless args.first == "git"
   if args[1] == "show" && args.length == 3
@@ -116,12 +118,13 @@ class BottleReceiptTests(unittest.TestCase):
                 "run": {"id": 101, "run_attempt": 1, "event": "pull_request", "conclusion": "success",
                         "head_sha": HEAD, "path": ".github/workflows/tests.yml",
                         "repository": {"full_name": "Entwining/homebrew-tap"}},
-                "artifact": {"id": 201, "name": "bottles_macos-26-1", "expired": False,
+                "artifact": {"id": 201, "name": "bottles-1", "expired": False,
                              "digest": "sha256:" + "d" * 64, "workflow_run": {"id": 101, "head_sha": HEAD}},
             },
             "sources": {f"{HEAD}:Formula/demo.rb": SOURCE},
             "blobs": {f"{HEAD}:Formula/demo.rb": BLOB, f"{TREE}:Formula/demo.rb": BLOB},
             "parents": {TREE: ["b" * 40, HEAD]}, "next_head": NEXT_HEAD,
+            "bottle_tags": {"demo": "arm64_tahoe"},
         }
 
     def setUp(self):
@@ -136,7 +139,7 @@ class BottleReceiptTests(unittest.TestCase):
         self.fixture.update(directory=str(self.bottles), output=str(self.path / "output"))
 
     def run_case(self, operation="plan", success=True):
-        (self.bottles / "demo--0.1.2.arm64_tahoe.bottle.json").write_text(json.dumps(self.data))
+        (self.bottles / "demo--0.1.2.bottle.json").write_text(json.dumps(self.data))
         config = self.path / "fixture.json"
         config.write_text(json.dumps(self.fixture))
         result = subprocess.run(
@@ -158,9 +161,20 @@ class BottleReceiptTests(unittest.TestCase):
         self.fixture["selection"]["head_sha"] = NEXT_HEAD
         return result
 
+    def retag(self, tag):
+        bottle = self.data["entwining/tap/demo"]["bottle"]
+        spec = bottle["tags"].pop("arm64_tahoe")
+        self.filename = spec["local_filename"] = f"demo--0.1.2.{tag}.bottle.tar.gz"
+        spec["filename"] = f"demo-0.1.2.{tag}.bottle.tar.gz"
+        bottle["tags"][tag] = spec
+        (self.bottles / self.filename).write_bytes(self.payload)
+
     def test_roundtrip_preserves_source_and_binds_commit_head(self):
         result = self.published()
-        self.assertEqual(result["ready"], ["demo"])
+        self.assertEqual(result["ready"], [{
+            "name": "demo", "pkg_version": "0.1.2", "bottle_tag": "arm64_tahoe",
+            "filename": "demo-0.1.2.arm64_tahoe.bottle.tar.gz", "sha256": hashlib.sha256(self.payload).hexdigest(),
+        }])
         self.assertIn('raise "PR Ruby must not be evaluated"', result["text"])
         commit = result["commit"]["variables"]["input"]
         self.assertEqual(commit["expectedHeadOid"], HEAD)
@@ -186,6 +200,24 @@ class BottleReceiptTests(unittest.TestCase):
         seed = self.run_case("seed")
         self.assertEqual(seed["run_id"], 101)
         self.assertEqual(seed["artifact_id"], 201)
+
+    def test_formula_publishes_its_own_bottle_tag(self):
+        self.fixture["bottle_tags"]["demo"] = "arm64_sequoia"
+        self.retag("arm64_sequoia")
+        result = self.published()
+        self.assertEqual(result["ready"][0]["bottle_tag"], "arm64_sequoia")
+        self.assertEqual(result["ready"][0]["filename"], "demo-0.1.2.arm64_sequoia.bottle.tar.gz")
+        self.assertIn("arm64_sequoia:", result["text"])
+        self.assertNotIn("arm64_tahoe", result["text"])
+
+    def test_bottle_from_another_runner_is_rejected(self):
+        self.fixture["bottle_tags"]["demo"] = "arm64_sequoia"
+        self.assertIn("Expected the arm64_sequoia bottle", self.run_case(success=False))
+
+    def test_receipt_for_a_former_bottle_tag_is_not_ready(self):
+        self.published()
+        self.fixture["bottle_tags"]["demo"] = "arm64_sequoia"
+        self.assertIsNone(self.run_case("ready"))
 
     def test_tested_commit_must_contain_source_head(self):
         self.fixture["parents"][TREE] = ["b" * 40]
@@ -216,7 +248,7 @@ class BottleReceiptTests(unittest.TestCase):
                 self.run_case(success=False)
 
     def test_artifact_attempt_and_expiry_are_enforced(self):
-        for change in [{"name": "bottles_macos-26-2"}, {"expired": True}, {"digest": None}]:
+        for change in [{"name": "bottles-2"}, {"name": "bottles_macos-26"}, {"expired": True}, {"digest": None}]:
             with self.subTest(change=change):
                 self.fixture["selection"]["artifact"] = {**self.baseline["selection"]["artifact"], **change}
                 self.run_case(success=False)

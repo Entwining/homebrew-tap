@@ -12,9 +12,9 @@ Each formula installs the package staged by upstream `make build`. Coordinate ch
 
 Release automation and Renovate use Conventional Commits. The required `commit-policy` check validates PR titles using the main branch's [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) configuration. GitHub squash commits use the PR title and body.
 
-`test-bot` builds and tests the formula from source and audits candidate bottle metadata. The publisher reserves that tested build in a protected `publish/<formula>-<version>[.<rebuild>]` receipt tag before uploading Release assets, then appends bottle metadata to the reviewed PR head and enables auto-merge. Once the PR's checks pass, GitHub adds it to the merge queue, which squash merges it and deletes its branch.
+`test-bot` requires the tap syntax checks and the formula builds. Each changed formula is built, tested and bottled from source on the macOS runner of its bottle tag in `.github/scripts/bottle_tags.json`, which also audits the candidate bottle metadata. The bottles of a build attempt form one artifact. The publisher reserves that tested build in a protected `publish/<formula>-<version>[.<rebuild>]` receipt tag before uploading Release assets, then appends bottle metadata to the reviewed PR head and enables auto-merge. Once the PR's checks pass, GitHub adds it to the merge queue, which squash merges it and deletes its branch.
 
-`bottle-ready` runs in the merge queue, on the commit the queue would land: it verifies the receipt, downloads and pours the bottle, and runs `brew test`. On the PR itself it reports skipped, because the bottle commit arrives only after `test-bot` passes there. Installation changes need a matching bottle even at the same package version.
+`bottle-ready` runs in the merge queue, on the commit the queue would land: it verifies the receipt, then pours each bottle and runs `brew test`. An `arm64_tahoe` bottle is installed with `--force-bottle` on macOS 26. An `arm64_sequoia` bottle is installed with a plain `brew install` on macOS 15, 26 and 27, each of which must select, download and pour the receipt's file. On the PR itself it reports skipped, because the bottle commit arrives only after `test-bot` passes there. Installation changes need a matching bottle even at the same package version.
 
 The merge queue tests each PR on the latest main, where `test-bot` reruns its syntax and script checks without building formulae, so PR branches need not be up to date. Scheduled reconciliation resumes open, same-repository `bump-*` PRs.
 
@@ -30,7 +30,7 @@ Keep formula execution and audits in ordinary PR CI. Privileged publication trea
 
 ## Adding or removing formulae
 
-Update `Formula/`, or `Casks/` for an app, the dispatch filters, manual choices and matrix in `.github/workflows/update.yml`, and the installation table together. A cask installs the upstream Release archive, so it has no bottles and no `make build` interface. Add or remove the upstream release notification and its tap App access with the tool.
+Update `Formula/`, or `Casks/` for an app, a formula's bottle tag in `.github/scripts/bottle_tags.json`, the dispatch filters, manual choices and matrix in `.github/workflows/update.yml`, and the installation table together. A cask installs the upstream Release archive, so it has no bottles and no `make build` interface. Publication checks bottles against main's bottle tags, so a tag change merges before the formula change that rebuilds the bottle. Add or remove the upstream release notification and its tap App access with the tool.
 
 ## Workflow dependencies
 

@@ -13,13 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  bottle-ready:
-    # A pull request gets its bottle commit only after test-bot passes on it, so the bottles are
-    # verified on the commit the merge queue would land. GitHub counts the job skipped on the pull
-    # request as passing, which leaves the queue, the only way to merge, to enforce it.
+  # A pull request gets its bottle commit only after test-bot passes on it, so the bottles are
+  # verified on the commit the merge queue would land.
+  receipts:
     if: github.event_name == 'merge_group'
-    runs-on: macos-26
-    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      formulae: ${{ steps.check.outputs.formulae }}
+      runners: ${{ steps.check.outputs.runners }}
     steps:
       - uses: Homebrew/actions/setup-homebrew@2026.10.26.1
         id: homebrew
@@ -27,6 +29,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check source-bound bottle metadata
+        id: check
         working-directory: ${{ steps.homebrew.outputs.repository-path }}
         env:
           BASE_SHA: ${{ github.event.merge_group.base_sha }}
@@ -40,17 +43,77 @@ jobs:
           jq -n --arg repository "$GITHUB_REPOSITORY" --arg sha "$HEAD_SHA" --slurpfile paths "$RUNNER_TEMP/paths.json" \
             '{repository: $repository, head_sha: $sha, paths: $paths[0]}' > "$RUNNER_TEMP/selection.json"
           brew ruby .github/scripts/bottle_receipt.rb check "$RUNNER_TEMP/selection.json" > "$RUNNER_TEMP/ready.json"
+          # Users on every supported macOS install an arm64_sequoia bottle without --force-bottle.
+          {
+            echo "formulae=$(jq -c .formulae "$RUNNER_TEMP/ready.json")"
+            echo "runners=$(jq -c '[.formulae[].bottle_tag | if . == "arm64_tahoe" then "macos-26"
+              elif . == "arm64_sequoia" then "macos-15", "macos-26", "xcode-27"
+              else error("No install check for \(.)") end] | unique' "$RUNNER_TEMP/ready.json")"
+          } >> "$GITHUB_OUTPUT"
+
+  install:
+    needs: receipts
+    if: needs.receipts.outputs.runners != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(needs.receipts.outputs.runners) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@2026.10.26.1
+        id: homebrew
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Fetch, pour and test the bottles
-        working-directory: ${{ steps.homebrew.outputs.repository-path }}
         env:
           TAP: ${{ steps.homebrew.outputs.tap-name }}
+          FORMULAE: ${{ needs.receipts.outputs.formulae }}
+          RUNNER: ${{ matrix.runner }}
         run: |
           set -euo pipefail
-          while IFS= read -r formula; do
-            formula="$TAP/$formula"
-            brew fetch --formula --bottle-tag=arm64_tahoe "$formula"
-            brew install --formula --force-bottle "$formula"
-            brew info --json=v2 --formula "$formula" | jq -e '.formulae[0].installed | length > 0 and all(.[]; .poured_from_bottle == true)'
+          brew --version
+          sw_vers
+          while IFS= read -r bottle; do
+            formula="$TAP/$(jq -r .name <<< "$bottle")"
+            case "$(jq -r .bottle_tag <<< "$bottle")" in
+              arm64_tahoe)
+                [[ "$RUNNER" == macos-26 ]] || continue
+                brew fetch --formula --bottle-tag=arm64_tahoe "$formula"
+                brew install --formula --force-bottle "$formula"
+                brew info --json=v2 --formula "$formula" | jq -e '.formulae[0].installed | length > 0 and all(.[]; .poured_from_bottle == true)'
+                ;;
+              arm64_sequoia)
+                # The bottle Homebrew selects for this macOS must be the receipt's, before and after it is poured.
+                # The runners' Bash 3.2 ignores a failed [[ ]] under set -e.
+                cache=$(brew --cache --formula "$formula")
+                [[ "$cache" == *"--$(jq -r .filename <<< "$bottle")" ]] || exit 1
+                brew install --formula "$formula"
+                printf '%s  %s\n' "$(jq -r .sha256 <<< "$bottle")" "$cache" | shasum -a 256 --check
+                brew info --json=v2 --formula "$formula" | jq -e --argjson bottle "$bottle" '
+                  .formulae[0].installed | length == 1 and .[0].version == $bottle.pkg_version and .[0].poured_from_bottle == true'
+                jq -e '.poured_from_bottle == true and (.built_on.os_version | test("^macOS 15(\\.|$)"))' \
+                  "$(brew --cellar "$formula")/$(jq -r .pkg_version <<< "$bottle")/INSTALL_RECEIPT.json"
+                ;;
+              *) exit 1 ;;
+            esac
             brew test "$formula"
-          done < <(jq -r '.formulae[]' "$RUNNER_TEMP/ready.json")
+          done < <(jq -c '.[]' <<< "$FORMULAE")
+
+  # The required check. GitHub counts it skipped on the pull request as passing, which leaves the
+  # queue, the only way to merge, to enforce it; there it runs after failed or cancelled jobs too.
+  bottle-ready:
+    needs: [receipts, install]
+    if: always() && github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the receipts and every install check
+        env:
+          RECEIPTS: ${{ needs.receipts.result }}
+          INSTALL: ${{ needs.install.result }}
+          RUNNERS: ${{ needs.receipts.outputs.runners }}
+        run: |
+          [[ "$RECEIPTS" == success ]]
+          [[ "$INSTALL" == success || ("$INSTALL" == skipped && "$RUNNERS" == '[]') ]]
