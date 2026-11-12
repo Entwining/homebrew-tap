@@ -1,5 +1,5 @@
 class Rexume < Formula
-  desc "Restore Rex sessions and agent conversations after the server restarts"
+  desc "Reopen agent conversations in restored Rex panes and return worker results"
   homepage "https://github.com/Entwining/rexume"
   url "https://github.com/Entwining/rexume.git",
       tag:      "v0.1.23",
