@@ -14,14 +14,14 @@ class Rexume < Formula
 
   bottle do
     root_url "https://github.com/Entwining/homebrew-tap/releases/download/rexume-0.1.23"
-    rebuild 1
-    sha256 cellar: :any_skip_relocation, arm64_tahoe: "6dda80f959eeb993580156f8886f4b1d4effc1b04c6380a6f42b183953d34881"
+    rebuild 2
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "940811859c66e23f7bed0c860006f59c458acf2502788c5163cbca8dac6a413a"
   end
 
   depends_on "cargo-about" => :build
   depends_on "rust" => :build
   depends_on arch: :arm64
-  depends_on :macos
+  depends_on macos: :sequoia
 
   def install
     # Homebrew's make wrapper replaces the -O3 that cc-rs passes for the bundled SQLite with -Os.
