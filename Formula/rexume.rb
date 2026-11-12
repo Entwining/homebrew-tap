@@ -21,7 +21,7 @@ class Rexume < Formula
   depends_on "cargo-about" => :build
   depends_on "rust" => :build
   depends_on arch: :arm64
-  depends_on :macos
+  depends_on macos: :sequoia
 
   def install
     # Homebrew's make wrapper replaces the -O3 that cc-rs passes for the bundled SQLite with -Os.
