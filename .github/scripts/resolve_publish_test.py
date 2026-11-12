@@ -62,7 +62,7 @@ class ResolvePublishTests(unittest.TestCase):
             f"{prefix}/pulls/1/files": [{"filename": "Formula/demo.rb", "status": "modified"}],
             f"{prefix}/actions/runs/101": self.run,
             f"{prefix}/actions/runs/101/attempts/1": self.run,
-            f"{prefix}/actions/runs/101/artifacts?name=bottles_macos-26-1": {"artifacts": [self.artifact]},
+            f"{prefix}/actions/runs/101/artifacts?name=bottles-1": {"artifacts": [self.artifact]},
             f"{prefix}/actions/artifacts/201": self.artifact,
         }}
 

@@ -86,7 +86,7 @@ jobs:
           git checkout --detach origin/main
           brew install-bundler-gems --add-groups=ast
           mkdir -p "$RUNNER_TEMP/publish-tools"
-          cp .github/scripts/{bottle_receipt.rb,resolve-publish.sh} "$RUNNER_TEMP/publish-tools/"
+          cp .github/scripts/{bottle_receipt.rb,bottle_tags.json,resolve-publish.sh} "$RUNNER_TEMP/publish-tools/"
           bash "$RUNNER_TEMP/publish-tools/resolve-publish.sh" "$RUNNER_TEMP/source"
 
       - uses: actions/download-artifact@v8.0.2

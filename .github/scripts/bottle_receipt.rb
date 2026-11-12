@@ -7,6 +7,9 @@ require "dev-cmd/bottle"
 
 # Keeps PR Ruby as syntax data while binding publication to the tested build.
 module BottleReceipt
+  # publish.yml copies bottle_tags.json from main beside this helper.
+  BOTTLE_TAGS = JSON.parse(File.read(File.join(__dir__, "bottle_tags.json"))).freeze
+
   module_function
 
   def source(sha, path)
@@ -78,7 +81,9 @@ module BottleReceipt
 
     root = "https://github.com/#{record.fetch("repository")}/releases/download/#{name}-#{version}"
     raise "Unexpected bottle root URL" if record.fetch("root_url") != root
-    raise "Expected the macos-26 bottle" if record.fetch("bottles").keys != ["arm64_tahoe"]
+
+    tag = BOTTLE_TAGS.fetch(name)
+    raise "Expected the #{tag} bottle" if record.fetch("bottles").keys != [tag]
 
     spec = BottleSpecification.new
     spec.root_url(root)
@@ -136,11 +141,15 @@ module BottleReceipt
       end
 
       return nil if Digest::SHA256.hexdigest(without_bottle(text)) != record.fetch("source_sha256")
+      # A receipt for another bottle tag predates the formula's current one.
+      return nil if record.fetch("bottles").keys != [BOTTLE_TAGS.fetch(name)]
 
       expected = Utils::AST::FormulaAST.new("class BottleCheck < Formula\n#{bottle_block(record)}end\n").bottle_block
       return nil if ast.bottle_block != expected
 
-      name
+      tag, bottle = record.fetch("bottles").first
+      { "name" => name, "pkg_version" => version, "bottle_tag" => tag,
+        "filename" => bottle.fetch("filename"), "sha256" => bottle.fetch("sha256") }
     end
   end
 
@@ -160,9 +169,15 @@ module BottleReceipt
                                                               ) != head
     raise "Artifact has expired" if artifact.fetch("expired")
     raise "Artifact has no immutable digest" unless artifact.fetch("digest").match?(/\Asha256:[0-9a-f]{64}\z/)
-    if artifact.fetch("name") != "bottles_macos-26-#{run.fetch("run_attempt")}"
-      raise "Artifact attempt does not match"
-    end
+
+    attempt = run.fetch("run_attempt")
+    names = ["bottles-#{attempt}"]
+    # Builds reserved before test-bot merged its runners' bottles carry their macos-26 artifact's name.
+    # Only their own receipt can resume them; this is unneeded once those artifacts have expired.
+    reserved = { "run_id" => run.fetch("id"), "run_attempt" => attempt,
+                 "artifact_id" => artifact.fetch("id"), "artifact_digest" => artifact.fetch("digest") }
+    names << "bottles_macos-26-#{attempt}" if seed(selection) == reserved
+    raise "Artifact attempt does not match" if names.exclude?(artifact.fetch("name"))
 
     directory = Pathname(directory)
     entries = directory.children
