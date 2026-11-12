@@ -26,6 +26,8 @@ For forks, the publisher prepares a bottle commit in this repository and prints 
 
 A retry adopts the receipt's original artifact and completes that reserved build. It reuses matching Release assets, uploads missing files, verifies public downloads and attests the published bytes. Conflicting assets or receipts stop publication; existing assets are never overwritten. If the selected artifact expires before completion, preserve the receipt and use a new bottle rebuild or formula revision. A reserved build whose bottle tag the formula no longer uses cannot complete either; publish a formula revision from a new head. A different build cannot claim the reserved filenames.
 
+When a run fails after appending the bottle commit, check the PR's current head and merge state first: it may already be queued or merged, or its head may have moved. Only an open same-repository PR whose head is still the bottle commit and which is not yet queued needs recovery. Scheduled reconciliation dispatches publication for `bump-*` PRs; for any other such PR, dispatch **Publish bottles** with the bottle commit as the head SHA. The receipt lets that run reuse the published bottles without a build artifact, so it only enables auto-merge.
+
 Keep formula execution and audits in ordinary PR CI. Privileged publication treats formula Ruby as AST data and creates the app token after uploads and attestation.
 
 ## Adding or removing formulae
@@ -54,7 +56,7 @@ Run these commands from the repository root:
 ```sh
 gh actions-lock --verify
 actionlint
-shellcheck .github/scripts/resolve-publish.sh
+shellcheck .github/scripts/queue-publish.sh .github/scripts/resolve-publish.sh
 brew install-bundler-gems --add-groups=ast,style
 python3 -m unittest discover -s .github/scripts -p '*_test.py'
 brew style .github/scripts/bottle_receipt.rb
