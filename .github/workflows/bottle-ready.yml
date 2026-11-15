@@ -23,7 +23,7 @@ jobs:
       formulae: ${{ steps.check.outputs.formulae }}
       runners: ${{ steps.check.outputs.runners }}
     steps:
-      - uses: Homebrew/actions/setup-homebrew@2026.10.26.1
+      - uses: Homebrew/actions/setup-homebrew@2026.11.02.1
         id: homebrew
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -61,7 +61,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
-      - uses: Homebrew/actions/setup-homebrew@2026.10.26.1
+      - uses: Homebrew/actions/setup-homebrew@2026.11.02.1
         id: homebrew
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
