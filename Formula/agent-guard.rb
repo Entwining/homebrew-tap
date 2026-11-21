@@ -2,8 +2,8 @@ class AgentGuard < Formula
   desc "Blocks agent filesystem scans and protected credential reads"
   homepage "https://github.com/Entwining/agent-guard"
   url "https://github.com/Entwining/agent-guard.git",
-      tag:      "v0.8.18",
-      revision: "55eb5641edbbf58fd9655026c920790d1c90bb9a"
+      tag:      "v0.8.19",
+      revision: "765851b7a9455854177c6b18dd3e12f6d4ce0b8a"
   license "MIT"
 
   livecheck do
@@ -13,8 +13,8 @@ class AgentGuard < Formula
   end
 
   bottle do
-    root_url "https://github.com/Entwining/homebrew-tap/releases/download/agent-guard-0.8.18"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe: "ad2a7ef19a366d1e703e3e22060a14638cf78bcad4b6bf8b3f0f4b90ca4651ce"
+    root_url "https://github.com/Entwining/homebrew-tap/releases/download/agent-guard-0.8.19"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe: "7c31b97a4f4dbc34e40ae7b9197b2873b32c798b81417d7ea586d24556897eff"
   end
 
   depends_on "cargo-about" => :build
