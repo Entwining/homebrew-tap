@@ -22,7 +22,7 @@ cask "maskey" do
   # main.go runs the command line when the executable is invoked as mk.
   binary "#{appdir}/Maskey.app/Contents/MacOS/Maskey", target: "mk"
 
-  uninstall launchctl: "io.github.entwining.maskey.keychain",
+  uninstall launchctl: "io.github.entwining.maskey.service",
             quit:      "io.github.entwining.maskey"
 
   # Entries live in iCloud Keychain and sync to the user's other Macs, so zap leaves them alone.
@@ -32,7 +32,8 @@ cask "maskey" do
     Maskey is signed ad hoc and not notarized, so Gatekeeper blocks it until you run:
       xattr -dr com.apple.quarantine #{appdir}/Maskey.app
 
-    Then run `mk setup` to install the Keychain service for sandboxed commands.
+    Then run `mk setup` to install the Maskey service, which sandboxed commands,
+    Bitwarden stores, and `mk grant` need.
     Maskey updates itself; set HOMEBREW_NO_UPGRADE_AUTO_UPDATES_CASKS=1 so that
     `brew upgrade` does not reinstall it, quarantined again.
   EOS
