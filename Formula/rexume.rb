@@ -2,8 +2,8 @@ class Rexume < Formula
   desc "Reopen agent conversations in restored Rex panes and return worker results"
   homepage "https://github.com/Entwining/rexume"
   url "https://github.com/Entwining/rexume.git",
-      tag:      "v0.1.27",
-      revision: "1fd7be381e5973a3e0640af48c5834049e3d4966"
+      tag:      "v0.1.28",
+      revision: "8de0ad0641c4dbc2993c5e31ac029da6cb2b061d"
   license "MIT"
 
   livecheck do
