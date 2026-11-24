@@ -1,6 +1,6 @@
 cask "maskey" do
-  version "0.0.11"
-  sha256 "cc7d42e02075cb5de95586302153877ad075c8a68668ba5817bd9ff3213dabb8"
+  version "0.0.12"
+  sha256 "d98814ce87ebd19085acb11fadaed50ac5c90e05a25f006813cec561173ca484"
 
   url "https://github.com/Entwining/maskey/releases/download/v#{version}/maskey-#{version}-darwin-arm64.tar.gz"
   name "Maskey"
@@ -16,7 +16,7 @@ cask "maskey" do
   # The app replaces itself with each signed release.
   auto_updates true
   depends_on arch: :arm64
-  depends_on macos: :monterey
+  depends_on macos: :ventura
 
   app "Maskey.app"
   # main.go runs the command line when the executable is invoked as mk.
