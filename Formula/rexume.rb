@@ -2,8 +2,8 @@ class Rexume < Formula
   desc "Reopen agent conversations in restored Rex panes and return worker results"
   homepage "https://github.com/Entwining/rexume"
   url "https://github.com/Entwining/rexume.git",
-      tag:      "v0.1.28",
-      revision: "8de0ad0641c4dbc2993c5e31ac029da6cb2b061d"
+      tag:      "v0.1.29",
+      revision: "c60937f116ccc705b49d3c5538627ca650631857"
   license "MIT"
 
   livecheck do
@@ -13,8 +13,8 @@ class Rexume < Formula
   end
 
   bottle do
-    root_url "https://github.com/Entwining/homebrew-tap/releases/download/rexume-0.1.28"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "e697bc020cb21ef30c048f11adaaa868b3b23546c68f118d909f123cacf08f1c"
+    root_url "https://github.com/Entwining/homebrew-tap/releases/download/rexume-0.1.29"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "3fc41bb0459ec7d6a5765ba18dd69bbeddb2b55d4418dc5870690aeced914180"
   end
 
   depends_on "cargo-about" => :build
